@@ -42,18 +42,22 @@ export async function GET(
     })
 
     const detailedResults = await Promise.all(
-      topResults.map(result => 
-        prisma.result.findFirst({
+      topResults.map(async result => {
+        if (result._max.score === null) return null
+
+        return prisma.result.findFirst({
           where: {
             quizId,
             playerName: result.playerName,
-            score: result._max.score,
+            score: {
+              equals: result._max.score
+            }
           },
           orderBy: {
             createdAt: 'desc'
           }
         })
-      )
+      })
     )
 
     const finalResults = detailedResults

@@ -3,13 +3,17 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
+interface RouteContext {
+  params: Promise<{ quizId: string }>
+}
+
 export async function GET(
   request: Request,
-  context: { params: { quizId: string } }
+  { params }: RouteContext
 ) {
-  const { quizId } = await Promise.resolve(context.params)
-
   try {
+    const { quizId } = await params
+
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId }
     })
@@ -33,11 +37,10 @@ export async function GET(
 
 export async function DELETE(
   request: Request,
-  context: { params: { quizId: string } }
+  { params }: RouteContext
 ) {
-  const { quizId } = await Promise.resolve(context.params)
-
   try {
+    const { quizId } = await params
     const session = await getServerSession(authOptions)
     
     if (!session?.user?.id) {
@@ -47,7 +50,6 @@ export async function DELETE(
       }, { status: 401 })
     }
 
-    // Verificar se o quiz existe e pertence ao usuário
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId }
     })
@@ -66,12 +68,10 @@ export async function DELETE(
       }, { status: 403 })
     }
 
-    // Excluir os resultados primeiro
     await prisma.result.deleteMany({
       where: { quizId }
     })
 
-    // Depois excluir o quiz
     await prisma.quiz.delete({
       where: { id: quizId }
     })
@@ -92,11 +92,10 @@ export async function DELETE(
 
 export async function PUT(
   request: Request,
-  context: { params: { quizId: string } }
+  { params }: RouteContext
 ) {
-  const { quizId } = await Promise.resolve(context.params)
-
   try {
+    const { quizId } = await params
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -107,7 +106,6 @@ export async function PUT(
 
     const body = await request.json()
 
-    // Verificar se o quiz existe e pertence ao usuário
     const existingQuiz = await prisma.quiz.findUnique({
       where: { id: quizId }
     })
