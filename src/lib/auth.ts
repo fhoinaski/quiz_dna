@@ -1,12 +1,12 @@
+// src/lib/auth.ts
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { compare } from "bcryptjs"
-import { prismadb } from "./prismadb"
+import { PrismaClient } from '@prisma/client'
 
-// Garantir que o prismadb esteja inicializado
-if (!prismadb) {
-  throw new Error("Prisma não foi inicializado corretamente")
-}
+// Criar uma instância dedicada para Auth
+// Esta abordagem evita problemas com a inicialização global
+const authPrisma = new PrismaClient()
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -17,12 +17,12 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Senha", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null
-        }
-
         try {
-          const user = await prismadb.user.findUnique({
+          if (!credentials?.email || !credentials?.password) {
+            return null
+          }
+
+          const user = await authPrisma.user.findUnique({
             where: { email: credentials.email }
           })
 

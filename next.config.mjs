@@ -1,24 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    // Desabilita ESLint durante build
     eslint: {
       ignoreDuringBuilds: true,
     },
-    // Desabilita verificação de tipos durante build
     typescript: {
       ignoreBuildErrors: true,
     },
-    // Configuração para permitir a inicialização adequada do Prisma
+    experimental: {
+      // Otimiza o carregamento do Prisma Client
+      serverComponentsExternalPackages: ["@prisma/client"],
+    },
     webpack: (config, { isServer }) => {
       if (isServer) {
-        if (!config.externals) {
-          config.externals = [];
-        } else if (!Array.isArray(config.externals)) {
-          config.externals = [config.externals];
-        }
-        
-        // Adiciona módulos ao externals para compatibilidade
-        config.externals.push('_http_common', 'encoding');
+        config.externals = [...(config.externals || []), "encoding", "_http_common"];
       }
       return config;
     },

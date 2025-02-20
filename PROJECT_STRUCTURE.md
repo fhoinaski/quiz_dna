@@ -1,6 +1,6 @@
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 20:19:27  
+**Gerado em:** 20/02/2025, 20:22:35  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -173,7 +173,7 @@ module.exports = nextConfig;
 ```md
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 20:10:08  
+**Gerado em:** 20/02/2025, 20:19:27  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -455,7 +455,7 @@ export async function GET(
         
 ```typescript
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prismadb } from '@/lib/prismadb'
 import bcrypt from 'bcryptjs'
 
 export async function POST(request: Request) {
@@ -471,7 +471,7 @@ export async function POST(request: Request) {
         }
 
         // Verifica se o email já está em uso
-        const existingUser = await prisma.user.findUnique({
+        const existingUser = await prismadb.user.findUnique({
             where: { email }
         })
 
@@ -1624,31 +1624,24 @@ import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request })
-  const isAuthPage = request.nextUrl.pathname.startsWith('/auth')
-  const isDashboardPage = request.nextUrl.pathname.startsWith('/dashboard')
-  const isApiRoute = request.nextUrl.pathname.startsWith('/api')
-
-  // Redireciona usuários autenticados da página de login para o dashboard
-  if (isAuthPage && token) {
+  
+  // Rotas do dashboard são protegidas
+  if (request.nextUrl.pathname.startsWith('/dashboard') && !token) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+  
+  // Usuários autenticados são redirecionados para o dashboard nas páginas de autenticação
+  if ((request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register') && token) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
+  
+  return NextResponse.next()
+}
 
-  // Protege rotas do dashboard
-  if (isDashboardPage && !token) {
-    return NextResponse.redirect(new URL('/auth/login', request.url))
-  }
-
-  // Protege rotas da API (exceto resultados públicos e auth)
-  if (isApiRoute && !token && !request.nextUrl.pathname.includes('/auth')) {
-    if (!request.nextUrl.pathname.match(/\/api\/quiz\/[^/]+\/results/)) {
-      return NextResponse.json(
-        { error: 'Não autorizado' }, 
-        { status: 401 }
-      )
-    }
-  }
-
-// ... (conteúdo truncado)
+// Configure o matcher para aplicar somente nas rotas necessárias
+export const config = {
+  matcher: ['/dashboard/:path*', '/login', '/register']
+}
   ```
 
   - 📁 providers/
