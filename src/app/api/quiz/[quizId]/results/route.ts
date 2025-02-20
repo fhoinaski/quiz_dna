@@ -1,14 +1,19 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
+interface ResultRequestBody {
+  playerName: string
+  score: number
+  totalQuestions: number
+}
+
 export async function GET(
   request: Request,
-  { params }: { params: { quizId: string } }
+  context: { params: Promise<{ quizId: string }> }
 ) {
-  const quizId = params.quizId
-
   try {
-    // Verifica se o quiz existe
+    const { quizId } = await context.params
+
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId }
     })
@@ -20,8 +25,7 @@ export async function GET(
       )
     }
 
-    // Busca o melhor resultado de cada jogador
-    const results = await prisma.result.groupBy({
+    const topResults = await prisma.result.groupBy({
       by: ['playerName'],
       where: { quizId },
       _max: {
@@ -37,10 +41,9 @@ export async function GET(
       take: 10
     })
 
-    // Busca os detalhes completos dos melhores resultados
     const detailedResults = await Promise.all(
-      results.map(async (result) => {
-        return prisma.result.findFirst({
+      topResults.map(result => 
+        prisma.result.findFirst({
           where: {
             quizId,
             playerName: result.playerName,
@@ -50,17 +53,15 @@ export async function GET(
             createdAt: 'desc'
           }
         })
-      })
+      )
     )
 
-    // Remove possíveis resultados nulos e ordena
     const finalResults = detailedResults
       .filter(Boolean)
       .sort((a, b) => {
-        if (b!.score !== a!.score) {
-          return b!.score - a!.score
-        }
-        return new Date(b!.createdAt).getTime() - new Date(a!.createdAt).getTime()
+        if (!a || !b) return 0
+        if (b.score !== a.score) return b.score - a.score
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       })
 
     return NextResponse.json(finalResults)
@@ -72,12 +73,11 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { quizId: string } }
+  context: { params: Promise<{ quizId: string }> }
 ) {
-  const quizId = params.quizId
-
   try {
-    // Verifica se o quiz existe
+    const { quizId } = await context.params
+
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId }
     })
@@ -89,15 +89,14 @@ export async function POST(
       )
     }
 
-    const body = await request.json()
+    const body: ResultRequestBody = await request.json()
 
-    // Verifica se já existe um resultado recente para este jogador
     const recentResult = await prisma.result.findFirst({
       where: {
         quizId,
         playerName: body.playerName,
         createdAt: {
-          gte: new Date(Date.now() - 5000) // últimos 5 segundos
+          gte: new Date(Date.now() - 5000)
         }
       }
     })
@@ -106,7 +105,6 @@ export async function POST(
       return NextResponse.json(recentResult)
     }
     
-    // Cria novo resultado
     const result = await prisma.result.create({
       data: {
         quizId,

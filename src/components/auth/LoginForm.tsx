@@ -5,7 +5,7 @@ import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
 import { Input } from '@/components/ui/Input'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/Card'
 
 export function LoginForm() {
@@ -33,7 +33,7 @@ export function LoginForm() {
       }
 
       router.push('/dashboard')
-    } catch (error) {
+    } catch {
       setError('Ocorreu um erro ao fazer login')
     } finally {
       setLoading(false)

@@ -3,7 +3,7 @@
 import { signOut } from 'next-auth/react'
 import { motion } from 'framer-motion'
 import { LogOut, Menu } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui/button'
 
 type HeaderProps = {
   user?: {

@@ -59,21 +59,25 @@ export function QuizList() {
 
   const handleDeleteConfirm = async () => {
     if (!quizToDelete) return
-
+  
     try {
       const response = await fetch(`/api/quiz/${quizToDelete}`, {
         method: 'DELETE'
       })
-
+  
       const data = await response.json()
-
+  
       if (data.success) {
         setQuizzes(current => current.filter(quiz => quiz.id !== quizToDelete))
       } else {
         throw new Error(data.message || 'Erro ao excluir quiz')
       }
-    } catch (error: any) {
-      setError(error.message || 'Erro ao excluir quiz')
+    } catch (error) {
+      setError(
+        error instanceof Error 
+          ? error.message 
+          : 'Erro ao excluir quiz'
+      )
       fetchQuizzes()
     } finally {
       setIsDeleteModalOpen(false)

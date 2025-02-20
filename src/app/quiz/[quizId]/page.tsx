@@ -7,16 +7,22 @@ import { WelcomeScreen } from '@/components/quiz/WelcomeScreen'
 import { QuizScreen } from '@/components/quiz/QuizScreen'
 import { ResultsScreen } from '@/components/quiz/ResultsScreen'
 
-type Quiz = {
+interface Question {
+  text: string
+  options: string[]
+  correctAnswer: number
+  order: number
+}
+
+interface Quiz {
   id: string
   title: string
   description: string
-  questions: {
-    text: string
-    options: string[]
-    correctAnswer: number
-    order: number
-  }[]
+  questions: Question[]
+}
+
+interface ApiError {
+  message: string
 }
 
 export default function QuizPage() {
@@ -32,13 +38,18 @@ export default function QuizPage() {
       try {
         const response = await fetch(`/api/quiz/${quizId}`)
         if (!response.ok) {
-          throw new Error('Quiz não encontrado')
+          const errorData = await response.json() as ApiError
+          throw new Error(errorData.message || 'Quiz não encontrado')
         }
-        const data = await response.json()
+        const data = await response.json() as Quiz
         setQuiz(data)
         setCurrentQuiz(data)
-      } catch (error: any) {
-        setError(error.message)
+      } catch (error) {
+        if (error instanceof Error) {
+          setError(error.message)
+        } else {
+          setError('Erro desconhecido ao carregar o quiz')
+        }
       } finally {
         setLoading(false)
       }

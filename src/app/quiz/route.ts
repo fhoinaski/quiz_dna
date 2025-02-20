@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 }
 
 // GET - Listar quizzes
-export async function GET(request: Request) {
+export async function GET() {  // Removido o parâmetro request não utilizado
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {

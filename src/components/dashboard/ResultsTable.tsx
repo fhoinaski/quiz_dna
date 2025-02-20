@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Card } from '@/components/ui/Card'
 import type { QuizResult } from '@/types'
@@ -13,9 +13,7 @@ export function ResultsTable({ quizId }: ResultsTableProps) {
   const [results, setResults] = useState<QuizResult[]>([])
   const [loading, setLoading] = useState(true)
 
- 
-
-  const fetchResults = async () => {
+  const fetchResults = useCallback(async () => {
     try {
       const response = await fetch(`/api/quiz/${quizId}/results`)
       const data = await response.json()
@@ -25,7 +23,14 @@ export function ResultsTable({ quizId }: ResultsTableProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [quizId])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      await fetchResults()
+    }
+    fetchData()
+  }, [quizId, fetchResults])
 
   if (loading) {
     return (
@@ -34,12 +39,6 @@ export function ResultsTable({ quizId }: ResultsTableProps) {
       </div>
     )
   }
-  useEffect(() => {
-    const fetchData = async () => {
-      await fetchResults();
-    };
-    fetchData();
-  }, [quizId, fetchResults]);
 
   return (
     <Card>

@@ -4,7 +4,7 @@
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { QuizList } from '@/components/dashboard/QuizList'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui/button'
 
 export default function DashboardPage() {
   return (

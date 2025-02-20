@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Trash2, Upload } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/Card'
 import type { Question } from '@/types'
 
@@ -130,7 +130,7 @@ export function QuizForm({ initialData }: QuizFormProps) {
     }
   }
 
-  const updateQuestion = (index: number, field: keyof Question, value: any) => {
+  const updateQuestion = (index: number, field: keyof Question, value: string | number | string[]) => {
     setQuestions(questions.map((q, i) => 
       i === index ? { ...q, [field]: value } : q
     ))

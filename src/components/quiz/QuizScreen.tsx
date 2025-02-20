@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuizStore } from '@/store'
 import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui/button'
 
 export function QuizScreen() {
   const { currentQuiz, currentQuestionIndex, answerQuestion } = useQuizStore()
