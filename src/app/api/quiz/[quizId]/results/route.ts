@@ -9,10 +9,10 @@ interface ResultRequestBody {
 
 export async function GET(
   request: Request,
-  context: { params: Promise<{ quizId: string }> }
+  context: { params: { quizId: string } }
 ) {
   try {
-    const { quizId } = await context.params
+    const { quizId } = context.params
 
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId }
@@ -42,7 +42,14 @@ export async function GET(
     })
 
     const detailedResults = await Promise.all(
-      topResults.map(async result => {
+      topResults.map(async (result: {
+        playerName: string
+        _max: {
+          score: number | null
+          createdAt: Date | null
+          totalQuestions: number | null
+        }
+      }) => {
         if (result._max.score === null) return null
 
         return prisma.result.findFirst({
@@ -77,10 +84,10 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  context: { params: Promise<{ quizId: string }> }
+  context: { params: { quizId: string } }
 ) {
   try {
-    const { quizId } = await context.params
+    const { quizId } = context.params
 
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId }
