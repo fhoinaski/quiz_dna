@@ -1,6 +1,6 @@
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 20:33:51  
+**Gerado em:** 20/02/2025, 20:41:17  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -136,13 +136,14 @@ module.exports = nextConfig;
   "name": "dna-vital-quiz-next",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
-    "start": "next start",
-    "lint": "next lint",
-    "postinstall": "prisma generate"
-  },
+  
+    "scripts": {
+      "dev": "next dev",
+      "build": "prisma generate && next build",
+      "start": "next start", 
+      "lint": "next lint",
+      "postinstall": "prisma generate"
+    },
   "prisma": {
     "schema": "prisma/schema.prisma"
   },
@@ -161,7 +162,6 @@ module.exports = nextConfig;
     "next-auth": "^4.24.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "shadcn-ui": "^0.9.4",
 // ... (conteúdo truncado)
 ```
 
@@ -173,7 +173,7 @@ module.exports = nextConfig;
 ```md
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 20:26:19  
+**Gerado em:** 20/02/2025, 20:33:51  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -454,7 +454,7 @@ export async function GET(
         
 ```typescript
 import { NextResponse } from 'next/server'
-import { prismadb } from '@/lib/prismadb'
+import { prisma } from '@/lib/prisma-client'
 import bcrypt from 'bcryptjs'
 
 export async function POST(request: Request) {
@@ -470,7 +470,7 @@ export async function POST(request: Request) {
         }
 
         // Verifica se o email já está em uso
-        const existingUser = await prismadb.user.findUnique({
+        const existingUser = await prisma.user.findUnique({
             where: { email }
         })
 
@@ -1576,56 +1576,6 @@ if (process.env.NODE_ENV !== 'production') {
 }
     ```
 
-    - 📄 prisma.ts
-    
-```typescript
-import { PrismaClient } from '@prisma/client'
-
-// PrismaClient é anexado ao objeto global em desenvolvimento para evitar
-// esgotamento de conexões durante hot reloading
-const globalForPrisma = global as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-// Definimos uma variável para evitar instanciações múltiplas em desenvolvimento
-// e uma instância limpa em produção
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-})
-
-// Em desenvolvimento, anexamos o cliente ao objeto global
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma
-}
-    ```
-
-    - 📄 prismadb.ts
-    
-```typescript
-// src/lib/prismadb.ts
-import { PrismaClient } from '@prisma/client'
-
-// Cria uma instância do Prisma Client
-let prismadb: PrismaClient
-
-// Em ambiente de produção, sempre cria uma nova instância
-if (process.env.NODE_ENV === 'production') {
-  prismadb = new PrismaClient()
-} 
-// Em desenvolvimento, reutiliza a conexão se já existir
-else {
-  // @ts-ignore - ignorar o erro de tipo global
-  if (!global.prismadb) {
-    // @ts-ignore - ignorar o erro de tipo global
-    global.prismadb = new PrismaClient()
-  }
-  // @ts-ignore - ignorar o erro de tipo global
-  prismadb = global.prismadb
-}
-
-export { prismadb }
-    ```
-
     - 📄 utils.ts
     
 ```typescript
@@ -1885,7 +1835,7 @@ const config: Config = {
 ```json
 {
   "functions": {
-    "api/**/*": {
+    "src/app/api/**/*": {
       "memory": 1024
     }
   },

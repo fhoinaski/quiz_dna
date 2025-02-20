@@ -1,17 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    eslint: {
-      ignoreDuringBuilds: true,
-    },
-    typescript: {
-      ignoreBuildErrors: true,
-    },
     webpack: (config, { isServer }) => {
       if (isServer) {
-        config.externals = [...(config.externals || []), "encoding", "_http_common"];
+        config.externals = [
+          ...(config.externals || []), 
+          'encoding', 
+          '_http_common'
+        ]
       }
-      return config;
+      return config
     },
+    // Desabilite a otimização do swc para resolver potenciais problemas com Prisma
+    swcMinify: false,
   };
   
   export default nextConfig;

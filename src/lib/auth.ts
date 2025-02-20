@@ -3,6 +3,11 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import { compare } from "bcryptjs"
 import { prisma } from "./prisma-client"
 
+// Verificação para garantir que o Prisma foi inicializado
+if (!prisma) {
+  throw new Error("Prisma não foi inicializado. Verifique a configuração.")
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
