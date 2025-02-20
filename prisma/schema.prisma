@@ -39,14 +39,13 @@ type Question {
 
 model Result {
   id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  quiz           Quiz     @relation(fields: [quizId], references: [id])
   quizId         String   @db.ObjectId
   playerName     String
   score          Int
   totalQuestions Int
-  timestamp      DateTime @default(now())
-  quiz           Quiz     @relation(fields: [quizId], references: [id])
-
-  @@unique([quizId, playerName, timestamp]) // Garante que não haverá duplicatas no mesmo momento
+  answers        Answer[]
+  createdAt      DateTime @default(now())
 }
 
 type Answer {

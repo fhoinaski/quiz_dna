@@ -2,9 +2,27 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { Prisma } from "@prisma/client"
 
 interface RouteContext {
   params: Promise<{ quizId: string }>
+}
+
+// Helper function para validar o quizId
+const validateQuizId = async (quizId: string) => {
+  const quiz = await prisma.quiz.findUnique({
+    where: { id: quizId }
+  })
+  return quiz
+}
+
+// Helper function para validar a sessão
+const validateSession = async () => {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    throw new Error("Não autorizado")
+  }
+  return session
 }
 
 export async function GET(
@@ -13,10 +31,7 @@ export async function GET(
 ) {
   try {
     const { quizId } = await params
-
-    const quiz = await prisma.quiz.findUnique({
-      where: { id: quizId }
-    })
+    const quiz = await validateQuizId(quizId)
 
     if (!quiz) {
       return NextResponse.json(
@@ -41,18 +56,8 @@ export async function DELETE(
 ) {
   try {
     const { quizId } = await params
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({
-        success: false,
-        message: "Não autorizado"
-      }, { status: 401 })
-    }
-
-    const quiz = await prisma.quiz.findUnique({
-      where: { id: quizId }
-    })
+    const session = await validateSession()
+    const quiz = await validateQuizId(quizId)
 
     if (!quiz) {
       return NextResponse.json({
@@ -68,20 +73,25 @@ export async function DELETE(
       }, { status: 403 })
     }
 
-    await prisma.result.deleteMany({
-      where: { quizId }
-    })
-
-    await prisma.quiz.delete({
-      where: { id: quizId }
-    })
+    // Usando transação para garantir a integridade dos dados
+    await prisma.$transaction([
+      prisma.result.deleteMany({ where: { quizId } }),
+      prisma.quiz.delete({ where: { id: quizId } })
+    ])
 
     return NextResponse.json({
       success: true,
       message: "Quiz excluído com sucesso"
-    }, { status: 200 })
+    })
 
   } catch (error) {
+    if (error instanceof Error && error.message === "Não autorizado") {
+      return NextResponse.json({
+        success: false,
+        message: "Não autorizado"
+      }, { status: 401 })
+    }
+
     console.error('Erro ao excluir quiz:', error)
     return NextResponse.json({
       success: false,
@@ -96,35 +106,26 @@ export async function PUT(
 ) {
   try {
     const { quizId } = await params
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Não autorizado" },
-        { status: 401 }
-      )
-    }
+    const session = await validateSession()
+    const quiz = await validateQuizId(quizId)
 
-    const body = await request.json()
-
-    const existingQuiz = await prisma.quiz.findUnique({
-      where: { id: quizId }
-    })
-
-    if (!existingQuiz) {
+    if (!quiz) {
       return NextResponse.json(
         { error: "Quiz não encontrado" },
         { status: 404 }
       )
     }
 
-    if (existingQuiz.userId !== session.user.id) {
+    if (quiz.userId !== session.user.id) {
       return NextResponse.json(
         { error: "Não autorizado" },
         { status: 403 }
       )
     }
 
-    const quiz = await prisma.quiz.update({
+    const body = await request.json()
+    
+    const updatedQuiz = await prisma.quiz.update({
       where: { id: quizId },
       data: {
         title: body.title,
@@ -134,8 +135,15 @@ export async function PUT(
       }
     })
 
-    return NextResponse.json(quiz)
+    return NextResponse.json(updatedQuiz)
   } catch (error) {
+    if (error instanceof Error && error.message === "Não autorizado") {
+      return NextResponse.json(
+        { error: "Não autorizado" },
+        { status: 401 }
+      )
+    }
+
     console.error('Erro ao atualizar quiz:', error)
     return NextResponse.json(
       { error: "Erro ao atualizar quiz" },
