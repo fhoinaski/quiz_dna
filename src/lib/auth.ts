@@ -1,10 +1,10 @@
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { compare } from "bcryptjs"
-import { prisma } from "./prisma"
+import { prismadb } from "./prismadb"
 
-// Garantir que o prisma esteja inicializado
-if (!prisma) {
+// Garantir que o prismadb esteja inicializado
+if (!prismadb) {
   throw new Error("Prisma não foi inicializado corretamente")
 }
 
@@ -22,7 +22,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          const user = await prisma.user.findUnique({
+          const user = await prismadb.user.findUnique({
             where: { email: credentials.email }
           })
 

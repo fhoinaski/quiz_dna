@@ -20,7 +20,6 @@ function findProjectRoot() {
 }
 
 function buildMarkdown(structure, depth = 0) {
-  // Adicionar verificação de estrutura vazia
   if (!structure || typeof structure !== 'object' || Object.keys(structure).length === 0) {
     return '';
   }
@@ -29,14 +28,10 @@ function buildMarkdown(structure, depth = 0) {
   const indent = '  '.repeat(depth);
 
   for (const [name, item] of Object.entries(structure)) {
-    if (!item) continue; // Ignorar itens nulos
-
-    if (item.error) {
-      md += `${indent}- 🚨 ${name} (Erro: ${item.error})\n`;
-      continue;
-    }
+    if (!item) continue;
 
     if (item.content !== undefined) {
+      // Processar arquivo
       md += `${indent}- 📄 ${name}\n`;
       
       if (item.content !== '[Arquivo binário]') {
@@ -45,14 +40,16 @@ function buildMarkdown(structure, depth = 0) {
                         ext === '.js' ? 'javascript' :
                         ext.slice(1) || 'text';
         
-        const content = item.content.split('\n').slice(0, MAX_CONTENT_LINES).join('\n');
-        const truncated = item.content.split('\n').length > MAX_CONTENT_LINES;
+        const contentLines = item.content.split('\n');
+        const truncated = contentLines.length > MAX_CONTENT_LINES;
+        const content = contentLines.slice(0, MAX_CONTENT_LINES).join('\n');
         
-        md += `${indent}  \`\`\`${codeLang}\n`;
+        md += `${indent}\n\`\`\`${codeLang}\n`;
         md += `${content}${truncated ? '\n// ... (conteúdo truncado)' : ''}\n`;
-        md += `${indent}  \`\`\`\n`;
+        md += `${indent}\`\`\`\n\n`;
       }
     } else {
+      // Processar pasta
       md += `${indent}- 📁 ${name}/\n`;
       const subMd = buildMarkdown(item, depth + 1);
       md += subMd;
@@ -69,7 +66,7 @@ function generateMarkdownReport(structure) {
 **Node Version:** ${process.version}  
 **Diretório Raiz:** \`${structure.metadata.projectRoot}\`
 
-${buildMarkdown(structure.structure)}
+${buildMarkdown(structure.structure).trim()}
 `;
 }
 
@@ -82,14 +79,13 @@ function readDirectory(dirPath, rootPath) {
       const fullPath = path.join(dirPath, entry.name);
       const relativePath = path.relative(rootPath, fullPath);
 
-      // Processamento especial para a pasta prisma
-      const isPrismaDir = path.basename(dirPath) === 'prisma';
-
-      if (isPrismaDir && entry.name !== 'schema.prisma') {
+      // Ignorar entradas excluídas
+      if (EXCLUDED_DIRS.includes(entry.name) || EXCLUDED_FILES.includes(entry.name)) {
         continue;
       }
 
-      if (EXCLUDED_DIRS.includes(entry.name) || EXCLUDED_FILES.includes(entry.name)) {
+      // Processamento especial para a pasta prisma
+      if (path.basename(dirPath) === 'prisma' && entry.name !== 'schema.prisma') {
         continue;
       }
 
@@ -106,7 +102,7 @@ function readDirectory(dirPath, rootPath) {
             : '[Arquivo binário]';
 
           structure[entry.name] = {
-            content: content.substring(0, 5000) + (content.length > 5000 ? '...' : ''),
+            content,
             path: relativePath,
             size: content.length
           };
@@ -141,10 +137,10 @@ function generateCodeMap() {
       structure: readDirectory(projectRoot, projectRoot)
     };
 
-    const outputFile = path.join(projectRoot, 'project-structure.md');
+    const outputFile = path.join(projectRoot, 'PROJECT_STRUCTURE.md');
     fs.writeFileSync(outputFile, generateMarkdownReport(structure));
     
-    console.log('\n✅ Relatório gerado com sucesso!');
+    console.log('\n✅ Relatório Markdown gerado com sucesso!');
     console.log(`📁 Arquivo: ${outputFile}`);
 
   } catch (error) {

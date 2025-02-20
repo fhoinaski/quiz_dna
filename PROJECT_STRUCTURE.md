@@ -1,11 +1,13 @@
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 19:58:11  
+**Gerado em:** 20/02/2025, 20:19:27  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
+- 📄 .env.example
 - 📄 .eslintrc.json
-  ```json
+
+```json
 {
     "extends": "next/core-web-vitals",
     "rules": {
@@ -23,10 +25,12 @@
     "@typescript-eslint/no-unused-vars": "error"
     }
   }
-  ```
+```
+
 - 📄 .gitattributes
 - 📄 components.json
-  ```json
+
+```json
 {
   "$schema": "https://ui.shadcn.com/schema.json",
   "style": "default",
@@ -48,10 +52,12 @@
   },
   "iconLibrary": "lucide"
 }
-  ```
+```
+
 - 📄 eslint.config.mjs
 - 📄 generate-code-map.js
-  ```javascript
+
+```javascript
 // generate-code-map.js
 const fs = require('fs');
 const path = require('path');
@@ -74,7 +80,6 @@ function findProjectRoot() {
 }
 
 function buildMarkdown(structure, depth = 0) {
-  // Adicionar verificação de estrutura vazia
   if (!structure || typeof structure !== 'object' || Object.keys(structure).length === 0) {
     return '';
   }
@@ -82,20 +87,25 @@ function buildMarkdown(structure, depth = 0) {
   let md = '';
   const indent = '  '.repeat(depth);
 
+  for (const [name, item] of Object.entries(structure)) {
 // ... (conteúdo truncado)
-  ```
+```
+
 - 📄 next-env.d.ts
-  ```typescript
+
+```typescript
 /// <reference types="next" />
 /// <reference types="next/image-types/global" />
 
 // NOTE: This file should not be edited
 // see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 
-  ```
+```
+
 - 📄 next.config.mjs
 - 📄 next.config.ts
-  ```typescript
+
+```typescript
 // @ts-nocheck
 
 /** @type {import('next').NextConfig} */
@@ -117,9 +127,11 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
-  ```
+```
+
 - 📄 package.json
-  ```json
+
+```json
 {
   "name": "dna-vital-quiz-next",
   "version": "0.1.0",
@@ -130,14 +142,12 @@ module.exports = nextConfig;
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "test:db": "ts-node --project tsconfig.json src/lib/db.ts",
     "prisma:studio": "prisma studio",
     "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push",
-    "prisma:seed": "ts-node --project tsconfig.json prisma/seed.ts"
+    "prisma:push": "prisma db push"
   },
   "prisma": {
-    "seed": "ts-node --project tsconfig.json prisma/seed.ts"
+    "schema": "prisma/schema.prisma"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",
@@ -150,11 +160,50 @@ module.exports = nextConfig;
     "gsap": "^3.12.7",
     "lucide-react": "^0.475.0",
     "mongodb": "^6.13.0",
+    "next": "^15.1.7",
+    "next-auth": "^4.24.11",
 // ... (conteúdo truncado)
-  ```
+```
+
 - 📄 postcss.config.mjs
 - 📁 prisma/
   - 📄 schema.prisma
+- 📄 PROJECT_STRUCTURE.md
+
+```md
+# Estrutura do Projeto
+
+**Gerado em:** 20/02/2025, 20:10:08  
+**Node Version:** v18.20.4  
+**Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
+
+- 📄 .env.example
+- 📄 .eslintrc.json
+
+```json
+{
+    "extends": "next/core-web-vitals",
+    "rules": {
+      // "@typescript-eslint/no-explicit-any": ["error", {
+      //   "ignoreRestArgs": true
+      // }],
+      // "@typescript-eslint/no-unused-vars": ["error", {
+      //   "argsIgnorePattern": "^_",
+      //   "varsIgnorePattern": "^_",
+      //   "caughtErrorsIgnorePattern": "^_"
+      // }],
+      "react-hooks/exhaustive-deps": "warn",
+      // "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/no-unused-vars": "error"
+    }
+  }
+```
+
+- 📄 .gitattributes
+// ... (conteúdo truncado)
+```
+
 - 📁 public/
   - 📄 file.svg
   - 📄 globe.svg
@@ -162,7 +211,8 @@ module.exports = nextConfig;
   - 📄 vercel.svg
   - 📄 window.svg
 - 📄 README.md
-  ```md
+
+```md
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
@@ -194,13 +244,15 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 // ... (conteúdo truncado)
-  ```
+```
+
 - 📁 src/
   - 📁 app/
     - 📁 (auth)/
       - 📁 login/
         - 📄 page.tsx
-          ```tsx
+        
+```tsx
 'use client'
 
 import { useState } from 'react'
@@ -232,10 +284,12 @@ export default function LoginPage() {
         gsap.set(particle, {
           x: Math.random() * window.innerWidth,
 // ... (conteúdo truncado)
-          ```
+        ```
+
       - 📁 register/
         - 📄 page.tsx
-          ```tsx
+        
+```tsx
 'use client'
 
 import { useState } from 'react'
@@ -267,26 +321,33 @@ export default function RegisterPage() {
         const particle = document.createElement('div')
         particle.className = 'absolute w-2 h-2 bg-blue-600 rounded-full opacity-50'
 // ... (conteúdo truncado)
-          ```
+        ```
+
     - 📁 api/
       - 📁 auth/
         - 📁 [...nextauth]/
           - 📄 route.ts
-            ```typescript
+          
+```typescript
 import NextAuth from "next-auth"
 import { authOptions } from "@/lib/auth"
 
+// Importar uma única vez e reutilizar o handler
 const handler = NextAuth(authOptions)
+
+// Exportar o handler para GET e POST
 export { handler as GET, handler as POST }
-            ```
+          ```
+
       - 📁 quiz/
         - 📄 route.ts
-          ```typescript
+        
+```typescript
 // app/api/quiz/route.ts
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { prismadb } from "@/lib/prismadb"
 
 // POST - Criar novo quiz
 export async function POST(request: Request) {
@@ -301,7 +362,7 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     
-    const quiz = await prisma.quiz.create({
+    const quiz = await prismadb.quiz.create({
       data: {
         title: body.title,
         description: body.description,
@@ -313,13 +374,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json(quiz)
 // ... (conteúdo truncado)
-          ```
+        ```
+
         - 📁 [quizId]/
           - 📁 results/
             - 📄 route.ts
-              ```typescript
+            
+```typescript
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prismadb } from "@/lib/prismadb";
 
 // Tipos
 interface ResultRequestBody {
@@ -335,7 +398,7 @@ interface RouteContext {
 // Funções auxiliares
 async function getQuizById(quizId: string) {
   try {
-    return await prisma.quiz.findUnique({
+    return await prismadb.quiz.findUnique({
       where: { id: quizId }
     });
   } catch (error) {
@@ -347,15 +410,17 @@ async function getQuizById(quizId: string) {
 async function getTopResults(quizId: string) {
   try {
     // Primeiro, pegamos os melhores resultados por jogador
-    const results = await prisma.result.findMany({
+    const results = await prismadb.result.findMany({
 // ... (conteúdo truncado)
-              ```
+            ```
+
           - 📄 route.ts
-            ```typescript
+          
+```typescript
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { prismadb } from "@/lib/prismadb"
 
 interface RouteContext {
   params: Promise<{ quizId: string }>
@@ -363,7 +428,7 @@ interface RouteContext {
 
 // Helper function para validar o quizId
 const validateQuizId = async (quizId: string) => {
-  const quiz = await prisma.quiz.findUnique({
+  const quiz = await prismadb.quiz.findUnique({
     where: { id: quizId }
   })
   return quiz
@@ -383,10 +448,12 @@ export async function GET(
   { params }: RouteContext
 ) {
 // ... (conteúdo truncado)
-            ```
+          ```
+
       - 📁 register/
         - 📄 route.ts
-          ```typescript
+        
+```typescript
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
@@ -418,10 +485,12 @@ export async function POST(request: Request) {
         // Criptografa a senha
         const hashedPassword = await bcrypt.hash(password, 10)
 // ... (conteúdo truncado)
-          ```
+        ```
+
     - 📁 dashboard/
       - 📄 layout.tsx
-        ```tsx
+      
+```tsx
 'use client'
 
 import { useSession } from 'next-auth/react'
@@ -453,9 +522,11 @@ export default function DashboardLayout({
   }
 
 // ... (conteúdo truncado)
-        ```
+      ```
+
       - 📄 page.tsx
-        ```tsx
+      
+```tsx
 'use client'
 
 
@@ -481,11 +552,13 @@ export default function DashboardPage() {
     </div>
   )
 }
-        ```
+      ```
+
       - 📁 quiz/
         - 📁 create/
           - 📄 page.tsx
-            ```tsx
+          
+```tsx
 'use client'
 
 import { useState } from 'react'
@@ -517,11 +590,13 @@ interface QuestionFormProps {
   canRemove: boolean
 }
 // ... (conteúdo truncado)
-            ```
+          ```
+
         - 📁 [quizId]/
           - 📁 edit/
             - 📄 page.tsx
-              ```tsx
+            
+```tsx
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -553,10 +628,12 @@ interface ApiError {
 
 // Componentes
 // ... (conteúdo truncado)
-              ```
+            ```
+
       - 📁 results/
         - 📄 page.tsx
-          ```tsx
+        
+```tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -588,9 +665,11 @@ type Result = {
 export default function DashboardResultsPage() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
 // ... (conteúdo truncado)
-          ```
+        ```
+
     - 📄 globals.css
-      ```css
+    
+```css
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -622,9 +701,11 @@ export default function DashboardResultsPage() {
     --chart-5: 27 87% 67%;
     --radius: 0.5rem
 // ... (conteúdo truncado)
-      ```
+    ```
+
     - 📄 layout.tsx
-      ```tsx
+    
+```tsx
 import { Suspense } from 'react'
 import AuthProvider from '@/providers/SessionProvider'
 import './globals.css'
@@ -646,9 +727,11 @@ export default function RootLayout({
     </html>
   )
 }
-      ```
+    ```
+
     - 📄 loading.tsx
-      ```tsx
+    
+```tsx
 export default function Loading() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -656,22 +739,26 @@ export default function Loading() {
       </div>
     )
   }
-      ```
+    ```
+
     - 📄 page.tsx
-      ```tsx
+    
+```tsx
 import RedirectToLogin from '@/components/RedirectToLogin';
 
 export default function Home() {
   return <RedirectToLogin />; // Sem elementos extras
 }
-      ```
+    ```
+
     - 📁 quiz/
       - 📄 route.ts
-        ```typescript
+      
+```typescript
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { prismadb } from "@/lib/prismadb"
 
 // POST - Criar novo quiz
 export async function POST(request: Request) {
@@ -686,7 +773,7 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     
-    const quiz = await prisma.quiz.create({
+    const quiz = await prismadb.quiz.create({
       data: {
         title: body.title,
         description: body.description,
@@ -699,10 +786,12 @@ export async function POST(request: Request) {
     return NextResponse.json(quiz)
   } catch (error) {
 // ... (conteúdo truncado)
-        ```
+      ```
+
       - 📁 [quizId]/
         - 📄 page.tsx
-          ```tsx
+        
+```tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -734,10 +823,12 @@ export default function QuizPage() {
   const params = useParams()
   const quizId = params.quizId as string
 // ... (conteúdo truncado)
-          ```
+        ```
+
         - 📁 ranking/
           - 📄 page.tsx
-            ```tsx
+          
+```tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -769,11 +860,13 @@ export default function RankingPage() {
   const [quiz, setQuiz] = useState<Quiz | null>(null)
   const [loading, setLoading] = useState(true)
 // ... (conteúdo truncado)
-            ```
+          ```
+
   - 📁 components/
     - 📁 auth/
       - 📄 LoginForm.tsx
-        ```tsx
+      
+```tsx
 'use client'
 
 import { useState } from 'react'
@@ -805,14 +898,18 @@ export function LoginForm() {
 
       if (result?.error) {
 // ... (conteúdo truncado)
-        ```
-      - 📄 RegisterForm.tsx
-        ```tsx
+      ```
 
-        ```
+      - 📄 RegisterForm.tsx
+      
+```tsx
+
+      ```
+
     - 📁 dashboard/
       - 📄 Header.tsx
-        ```tsx
+      
+```tsx
 'use client'
 
 import { signOut } from 'next-auth/react'
@@ -844,9 +941,11 @@ export function Header({ user, onMenuClick }: HeaderProps) {
             <Menu className="h-5 w-5" />
           </Button>
 // ... (conteúdo truncado)
-        ```
+      ```
+
       - 📄 QuizForm.tsx
-        ```tsx
+      
+```tsx
 'use client'
 
 import { useState } from 'react'
@@ -878,9 +977,11 @@ export function QuizForm({ initialData }: QuizFormProps) {
       correctAnswer: 0,
       order: 0
 // ... (conteúdo truncado)
-        ```
+      ```
+
       - 📄 QuizList.tsx
-        ```tsx
+      
+```tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -912,9 +1013,11 @@ type Quiz = {
 export function QuizList() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
 // ... (conteúdo truncado)
-        ```
+      ```
+
       - 📄 ResultsTable.tsx
-        ```tsx
+      
+```tsx
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -946,9 +1049,11 @@ export function ResultsTable({ quizId }: ResultsTableProps) {
     const fetchData = async () => {
       await fetchResults()
 // ... (conteúdo truncado)
-        ```
+      ```
+
       - 📄 Sidebar.tsx
-        ```tsx
+      
+```tsx
 'use client'
 
 import Link from 'next/link'
@@ -980,10 +1085,12 @@ export function Sidebar() {
 
   return (
 // ... (conteúdo truncado)
-        ```
+      ```
+
     - 📁 quiz/
       - 📄 QuizScreen.tsx
-        ```tsx
+      
+```tsx
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
@@ -1015,9 +1122,11 @@ export function QuizScreen() {
             />
           </div>
 // ... (conteúdo truncado)
-        ```
+      ```
+
       - 📄 ResultsScreen.tsx
-        ```tsx
+      
+```tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -1049,9 +1158,11 @@ export function ResultsScreen() {
             totalQuestions: currentQuiz.questions.length,
             timestamp: Date.now() // Adiciona timestamp para evitar duplicatas
 // ... (conteúdo truncado)
-        ```
+      ```
+
       - 📄 WelcomeScreen.tsx
-        ```tsx
+      
+```tsx
 'use client'
 
 import { motion } from 'framer-motion'
@@ -1083,9 +1194,11 @@ export function WelcomeScreen({ quiz }: WelcomeScreenProps) {
       <Particles />
       
 // ... (conteúdo truncado)
-        ```
+      ```
+
     - 📄 QuizScreen.tsx
-      ```tsx
+    
+```tsx
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
@@ -1117,9 +1230,11 @@ export const QuizScreen = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
 // ... (conteúdo truncado)
-      ```
+    ```
+
     - 📄 RedirectToLogin.tsx
-      ```tsx
+    
+```tsx
 'use client';
 
 import { useEffect } from 'react';
@@ -1134,9 +1249,11 @@ export default function RedirectToLogin() {
 
   return null; // Nenhum conteúdo renderizado
 }
-      ```
+    ```
+
     - 📄 ResultsScreen.tsx
-      ```tsx
+    
+```tsx
 'use client'
 
 import { useEffect } from 'react';
@@ -1151,10 +1268,12 @@ export default function RedirectToLogin() {
 
   return null;
 }
-      ```
+    ```
+
     - 📁 ui/
       - 📄 alert-dialog.tsx
-        ```tsx
+      
+```tsx
 "use client"
 
 import * as React from "react"
@@ -1186,9 +1305,11 @@ AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName
 
 const AlertDialogContent = React.forwardRef<
 // ... (conteúdo truncado)
-        ```
+      ```
+
       - 📄 button.tsx
-        ```tsx
+      
+```tsx
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
@@ -1220,9 +1341,11 @@ const buttonVariants = cva(
     defaultVariants: {
       variant: "default",
 // ... (conteúdo truncado)
-        ```
+      ```
+
       - 📄 Card.tsx
-        ```tsx
+      
+```tsx
 import { HTMLAttributes, forwardRef } from 'react'
 import { cn } from '@/utils/cn'
 
@@ -1254,9 +1377,11 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
   }
 )
 // ... (conteúdo truncado)
-        ```
+      ```
+
       - 📄 Input.tsx
-        ```tsx
+      
+```tsx
 import { InputHTMLAttributes, forwardRef } from 'react'
 import { cn } from '@/utils/cn'
 
@@ -1288,9 +1413,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
       </div>
 // ... (conteúdo truncado)
-        ```
+      ```
+
       - 📄 Particles.tsx
-        ```tsx
+      
+```tsx
 'use client'
 
 import { useEffect, useRef } from 'react'
@@ -1322,9 +1449,11 @@ export function Particles() {
           repeat: -1,
           yoyo: true,
 // ... (conteúdo truncado)
-        ```
+      ```
+
     - 📄 WelcomeScreen.tsx
-      ```tsx
+    
+```tsx
 'use client'
 
 import { useEffect, useRef } from 'react'
@@ -1356,14 +1485,21 @@ export const WelcomeScreen = () => {
         })
 
 // ... (conteúdo truncado)
-      ```
+    ```
+
   - 📁 lib/
     - 📄 auth.ts
-      ```typescript
+    
+```typescript
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { prisma } from "./prisma"
 import { compare } from "bcryptjs"
+import { prismadb } from "./prismadb"
+
+// Garantir que o prismadb esteja inicializado
+if (!prismadb) {
+  throw new Error("Prisma não foi inicializado corretamente")
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -1375,25 +1511,22 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Credenciais inválidas")
+          return null
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email }
-        })
+        try {
+          const user = await prismadb.user.findUnique({
+            where: { email: credentials.email }
+          })
 
-        if (!user) {
-          throw new Error("Usuário não encontrado")
-        }
-
-        const isPasswordValid = await compare(
-          credentials.password, 
-          user.password
-        )
+          if (!user) {
+            return null
 // ... (conteúdo truncado)
-      ```
+    ```
+
     - 📄 db.ts
-      ```typescript
+    
+```typescript
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient()
@@ -1425,26 +1558,54 @@ async function main() {
 
 main()
 // ... (conteúdo truncado)
-      ```
+    ```
+
     - 📄 prisma.ts
-      ```typescript
+    
+```typescript
 import { PrismaClient } from '@prisma/client'
 
-// Evita múltiplas instâncias do Prisma Client durante hot reload
-const prismaGlobal = global as unknown as { prisma: PrismaClient }
-
-export const prisma = 
-  prismaGlobal.prisma || 
-  new PrismaClient({
-    log: ['query'],
-  })
-
-if (process.env.NODE_ENV !== 'production') {
-  prismaGlobal.prisma = prisma
+// PrismaClient é anexado ao objeto global em desenvolvimento para evitar
+// esgotamento de conexões durante hot reloading
+const globalForPrisma = global as unknown as {
+  prisma: PrismaClient | undefined
 }
-      ```
+
+// Definimos uma variável para evitar instanciações múltiplas em desenvolvimento
+// e uma instância limpa em produção
+export const prisma = globalForPrisma.prisma ?? new PrismaClient({
+  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+})
+
+// Em desenvolvimento, anexamos o cliente ao objeto global
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma
+}
+    ```
+
+    - 📄 prismadb.ts
+    
+```typescript
+
+import { PrismaClient } from '@prisma/client'
+
+// Usa um nome diferente para evitar conflitos
+const globalForPrisma = global as unknown as { 
+  prismadb: PrismaClient | undefined 
+}
+
+// Inicializa o cliente apenas uma vez
+export const prismadb = globalForPrisma.prismadb || new PrismaClient()
+
+// Em desenvolvimento, salva a instância no global
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prismadb = prismadb
+}
+    ```
+
     - 📄 utils.ts
-      ```typescript
+    
+```typescript
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -1452,9 +1613,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-      ```
+    ```
+
   - 📄 middleware.ts
-    ```typescript
+  
+```typescript
 import { NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import type { NextRequest } from 'next/server'
@@ -1486,10 +1649,12 @@ export async function middleware(request: NextRequest) {
   }
 
 // ... (conteúdo truncado)
-    ```
+  ```
+
   - 📁 providers/
     - 📄 SessionProvider.tsx
-      ```tsx
+    
+```tsx
 'use client'
 
 import { SessionProvider } from "next-auth/react"
@@ -1501,10 +1666,12 @@ export default function AuthProvider({
 }) {
   return <SessionProvider>{children}</SessionProvider>
 }
-      ```
+    ```
+
   - 📁 store/
     - 📄 index.ts
-      ```typescript
+    
+```typescript
 import { create } from 'zustand'
 
 type Question = {
@@ -1536,18 +1703,22 @@ type QuizStore = {
 
 export const useQuizStore = create<QuizStore>((set, get) => ({
 // ... (conteúdo truncado)
-      ```
+    ```
+
   - 📁 types/
     - 📄 error.ts
-      ```typescript
+    
+```typescript
 export type CustomError = {
     message: string;
     code?: string;
     status?: number;
   };
-      ```
+    ```
+
     - 📄 index.ts
-      ```typescript
+    
+```typescript
 export type User = {
     id: string
     name: string
@@ -1579,9 +1750,11 @@ export type User = {
     totalQuestions: number
     createdAt: Date
 // ... (conteúdo truncado)
-      ```
+    ```
+
     - 📄 next-auth.d.ts
-      ```typescript
+    
+```typescript
 import "next-auth"
 
 declare module "next-auth" {
@@ -1599,23 +1772,29 @@ declare module "next-auth" {
     name: string
   }
 }
-      ```
+    ```
+
   - 📁 utils/
     - 📄 api.ts
-      ```typescript
+    
+```typescript
 
-      ```
+    ```
+
     - 📄 cn.ts
-      ```typescript
+    
+```typescript
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
-      ```
+    ```
+
 - 📄 tailwind.config.ts
-  ```typescript
+
+```typescript
 import type { Config } from 'tailwindcss'
 
 const config: Config = {
@@ -1647,9 +1826,11 @@ const config: Config = {
           foreground: 'hsl(var(--card-foreground))'
         },
 // ... (conteúdo truncado)
-  ```
+```
+
 - 📄 tsconfig.json
-  ```json
+
+```json
 {
   "compilerOptions": {
     "target": "ES2017",
@@ -1681,23 +1862,14 @@ const config: Config = {
     "**/*.ts",
     "**/*.tsx",
 // ... (conteúdo truncado)
-  ```
-- 📄 vercel.json
-  ```json
-{
-  "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next",
-      "config": {
-        "installCommand": "npm install && npx prisma generate",
-        "buildCommand": "npx prisma generate && next build"
-      }
-    }
-  ],
-  "buildCommand": "npx prisma generate && npm run build",
-  "installCommand": "npm install && npx prisma generate"
-}
-  ```
+```
 
+- 📄 vercel.json
+
+```json
+{
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "framework": "nextjs"
+}
+```
