@@ -28,9 +28,7 @@ export default function EditQuizPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    fetchQuiz()
-  }, [])
+  
 
   const fetchQuiz = async () => {
     try {
@@ -44,6 +42,10 @@ export default function EditQuizPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchQuiz();
+  }, [params.quizId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

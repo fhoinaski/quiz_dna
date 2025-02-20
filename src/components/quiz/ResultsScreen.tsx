@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Trophy, BarChart2, RotateCcw } from 'lucide-react'
+import { Trophy, BarChart2 } from 'lucide-react'
 import { useQuizStore } from '@/store'
 import { Particles } from '@/components/ui/Particles'
 

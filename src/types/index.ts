@@ -29,3 +29,15 @@ export type User = {
     totalQuestions: number
     createdAt: Date
   }
+  export type CustomError = {
+    message: string;
+    code?: string;
+    status?: number;
+  };
+  
+  export type APIError = {
+    error: string;
+    message?: string;
+    status?: number;
+  };
+

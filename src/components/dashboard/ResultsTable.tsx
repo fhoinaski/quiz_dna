@@ -13,9 +13,7 @@ export function ResultsTable({ quizId }: ResultsTableProps) {
   const [results, setResults] = useState<QuizResult[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchResults()
-  }, [quizId])
+ 
 
   const fetchResults = async () => {
     try {
@@ -36,6 +34,12 @@ export function ResultsTable({ quizId }: ResultsTableProps) {
       </div>
     )
   }
+  useEffect(() => {
+    const fetchData = async () => {
+      await fetchResults();
+    };
+    fetchData();
+  }, [quizId, fetchResults]);
 
   return (
     <Card>

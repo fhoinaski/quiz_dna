@@ -5,18 +5,96 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Plus, Trash2 } from 'lucide-react'
 
-type Question = {
+// Types
+interface Question {
   text: string
   options: string[]
   correctAnswer: number
   order: number
 }
 
-export default function CreateQuizPage() {
-  const router = useRouter()
+interface QuizFormData {
+  title: string
+  description: string
+  questions: Question[]
+  isPublished: boolean
+}
+
+// Components
+interface QuestionFormProps {
+  question: Question
+  questionIndex: number
+  onUpdate: (index: number, field: keyof Question, value: string | string[] | number) => void
+  onRemove: (index: number) => void
+  canRemove: boolean
+}
+
+const QuestionForm = ({ question, questionIndex, onUpdate, onRemove, canRemove }: QuestionFormProps) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-lg shadow p-6"
+    >
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold">Questão {questionIndex + 1}</h3>
+        {canRemove && (
+          <button
+            type="button"
+            onClick={() => onRemove(questionIndex)}
+            className="text-red-500 hover:text-red-700"
+          >
+            <Trash2 className="h-5 w-5" />
+          </button>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        <input
+          type="text"
+          placeholder="Digite a pergunta"
+          value={question.text}
+          onChange={(e) => onUpdate(questionIndex, 'text', e.target.value)}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+        />
+
+        <div className="space-y-3">
+          {question.options.map((option, optionIndex) => (
+            <div key={optionIndex} className="flex gap-3 items-center">
+              <input
+                type="radio"
+                name={`correct-${questionIndex}`}
+                checked={question.correctAnswer === optionIndex}
+                onChange={() => onUpdate(questionIndex, 'correctAnswer', optionIndex)}
+                required
+              />
+              <input
+                type="text"
+                placeholder={`Opção ${optionIndex + 1}`}
+                value={option}
+                onChange={(e) => {
+                  const newOptions = [...question.options]
+                  newOptions[optionIndex] = e.target.value
+                  onUpdate(questionIndex, 'options', newOptions)
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// Custom Hook
+const useQuizForm = () => {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [error, setError] = useState('') // Adicionado estado de erro
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const [questions, setQuestions] = useState<Question[]>([
     {
       text: '',
@@ -25,7 +103,6 @@ export default function CreateQuizPage() {
       order: 0
     }
   ])
-  const [loading, setLoading] = useState(false)
 
   const addQuestion = () => {
     setQuestions([
@@ -45,16 +122,57 @@ export default function CreateQuizPage() {
     }
   }
 
-  const updateQuestion = (index: number, field: keyof Question, value: any) => {
+  const updateQuestion = (index: number, field: keyof Question, value: string | string[] | number) => {
     setQuestions(questions.map((q, i) => 
       i === index ? { ...q, [field]: value } : q
     ))
   }
 
+  return {
+    title,
+    setTitle,
+    description,
+    setDescription,
+    error,
+    setError,
+    loading,
+    setLoading,
+    questions,
+    addQuestion,
+    removeQuestion,
+    updateQuestion
+  }
+}
+
+// Main Component
+export default function CreateQuizPage() {
+  const router = useRouter()
+  const {
+    title,
+    setTitle,
+    description,
+    setDescription,
+    error,
+    setError,
+    loading,
+    setLoading,
+    questions,
+    addQuestion,
+    removeQuestion,
+    updateQuestion
+  } = useQuizForm()
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
+
+    const formData: QuizFormData = {
+      title,
+      description,
+      questions,
+      isPublished: false
+    }
 
     try {
       const response = await fetch('/api/quiz', {
@@ -62,23 +180,22 @@ export default function CreateQuizPage() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          title,
-          description,
-          questions,
-          isPublished: false
-        })
+        body: JSON.stringify(formData)
       })
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Erro ao criar quiz')
+        const errorData: { error: string } = await response.json()
+        throw new Error(errorData.error || 'Erro ao criar quiz')
       }
 
       await response.json()
       router.push('/dashboard')
-    } catch (error: any) {
-      setError(error.message || 'Erro ao criar quiz')
+    } catch (error) {
+      if (error instanceof Error) {
+        setError(error.message)
+      } else {
+        setError('Erro ao criar quiz')
+      }
       console.error('Erro ao criar quiz:', error)
     } finally {
       setLoading(false)
@@ -129,65 +246,15 @@ export default function CreateQuizPage() {
           </div>
 
           <div className="space-y-6">
-            {questions.map((question, qIndex) => (
-              <motion.div
-                key={qIndex}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-lg shadow p-6"
-              >
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">
-                    Questão {qIndex + 1}
-                  </h3>
-                  {questions.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeQuestion(qIndex)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-4">
-                  <input
-                    type="text"
-                    placeholder="Digite a pergunta"
-                    value={question.text}
-                    onChange={(e) => updateQuestion(qIndex, 'text', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-
-                  <div className="space-y-3">
-                    {question.options.map((option, oIndex) => (
-                      <div key={oIndex} className="flex gap-3 items-center">
-                        <input
-                          type="radio"
-                          name={`correct-${qIndex}`}
-                          checked={question.correctAnswer === oIndex}
-                          onChange={() => updateQuestion(qIndex, 'correctAnswer', oIndex)}
-                          required
-                        />
-                        <input
-                          type="text"
-                          placeholder={`Opção ${oIndex + 1}`}
-                          value={option}
-                          onChange={(e) => {
-                            const newOptions = [...question.options]
-                            newOptions[oIndex] = e.target.value
-                            updateQuestion(qIndex, 'options', newOptions)
-                          }}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
+            {questions.map((question, index) => (
+              <QuestionForm
+                key={index}
+                question={question}
+                questionIndex={index}
+                onUpdate={updateQuestion}
+                onRemove={removeQuestion}
+                canRemove={questions.length > 1}
+              />
             ))}
           </div>
 

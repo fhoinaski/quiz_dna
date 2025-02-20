@@ -9,7 +9,7 @@ import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
 
 export default function LoginPage() {
-  const [error, setError] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const particlesRef = useRef<HTMLDivElement>(null)
@@ -50,7 +50,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setError('')
+    setErrorMessage('')
     setLoading(true)
 
     const formData = new FormData(e.currentTarget)
@@ -63,12 +63,13 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
-        setError('Credenciais inválidas')
+        setErrorMessage('Credenciais inválidas')
       } else {
         router.push('/dashboard')
       }
-    } catch (error) {
-      setError('Ocorreu um erro ao fazer login')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Ocorreu um erro ao fazer login'
+      setErrorMessage(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -96,9 +97,9 @@ export default function LoginPage() {
             DNA Vital Quiz
           </h1>
 
-          {error && (
+          {errorMessage && (
             <div className="mb-4 p-3 bg-red-100 text-red-600 rounded-lg text-sm">
-              {error}
+              {errorMessage}
             </div>
           )}
 
