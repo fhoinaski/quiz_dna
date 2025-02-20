@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { Prisma, Result } from "@prisma/client"
 
 interface ResultRequestBody {
   playerName: string
@@ -7,13 +8,25 @@ interface ResultRequestBody {
   totalQuestions: number
 }
 
-// Corrigir a tipagem do contexto
+interface RouteContext {
+  params: {
+    quizId: string
+  }
+}
+
+type GroupByResult = Prisma.PickEnumerable<Prisma.ResultGroupByOutputType, ["playerName"]> & {
+  _max: {
+    score: number | null
+    totalQuestions: number | null
+  }
+}
+
 export async function GET(
   request: Request,
-  { params }: { params: { quizId: string } }
+  context: RouteContext
 ) {
   try {
-    const { quizId } = params
+    const { quizId } = context.params
 
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId }
@@ -31,7 +44,6 @@ export async function GET(
       where: { quizId },
       _max: {
         score: true,
-        createdAt: true,
         totalQuestions: true,
       },
       orderBy: {
@@ -43,14 +55,7 @@ export async function GET(
     })
 
     const detailedResults = await Promise.all(
-      topResults.map(async (result: {
-        playerName: string
-        _max: {
-          score: number | null
-          createdAt: Date | null
-          totalQuestions: number | null
-        }
-      }) => {
+      topResults.map(async (result: GroupByResult) => {
         if (result._max.score === null) return null
 
         return prisma.result.findFirst({
@@ -69,9 +74,8 @@ export async function GET(
     )
 
     const finalResults = detailedResults
-      .filter(Boolean)
+      .filter((result): result is NonNullable<typeof result> => result !== null)
       .sort((a, b) => {
-        if (!a || !b) return 0
         if (b.score !== a.score) return b.score - a.score
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       })
@@ -85,7 +89,7 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  context: { params: { quizId: string } }
+  context: RouteContext
 ) {
   try {
     const { quizId } = context.params
