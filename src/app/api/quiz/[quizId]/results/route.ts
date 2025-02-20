@@ -1,89 +1,119 @@
-import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import { Prisma, Result } from "@prisma/client"
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
+// Tipos
 interface ResultRequestBody {
-  playerName: string
-  score: number
-  totalQuestions: number
+  playerName: string;
+  score: number;
+  totalQuestions: number;
 }
 
 interface RouteContext {
-  params: {
-    quizId: string
+  params: Promise<{ quizId: string }>;
+}
+
+// Funções auxiliares
+async function getQuizById(quizId: string) {
+  try {
+    return await prisma.quiz.findUnique({
+      where: { id: quizId }
+    });
+  } catch (error) {
+    console.error('Erro ao buscar quiz:', error);
+    return null;
   }
 }
 
-type GroupByResult = Prisma.PickEnumerable<Prisma.ResultGroupByOutputType, ["playerName"]> & {
-  _max: {
-    score: number | null
-    totalQuestions: number | null
+async function getTopResults(quizId: string) {
+  try {
+    // Primeiro, pegamos os melhores resultados por jogador
+    const results = await prisma.result.findMany({
+      where: { quizId },
+      orderBy: [
+        { score: 'desc' },
+        { createdAt: 'desc' }
+      ],
+      distinct: ['playerName'],
+      take: 10,
+      select: {
+        id: true,
+        playerName: true,
+        score: true,
+        totalQuestions: true,
+        createdAt: true,
+        answers: true
+      }
+    });
+
+    return results;
+  } catch (error) {
+    console.error('Erro ao buscar top resultados:', error);
+    return [];
   }
 }
 
+async function createResult(quizId: string, data: ResultRequestBody) {
+  try {
+    return await prisma.result.create({
+      data: {
+        quizId,
+        playerName: data.playerName,
+        score: data.score,
+        totalQuestions: data.totalQuestions,
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao criar resultado:', error);
+    throw error;
+  }
+}
+
+async function checkRecentResult(quizId: string, playerName: string) {
+  try {
+    return await prisma.result.findFirst({
+      where: {
+        quizId,
+        playerName,
+        createdAt: {
+          gte: new Date(Date.now() - 5000) // 5 segundos
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao verificar resultado recente:', error);
+    return null;
+  }
+}
+
+// Handlers
 export async function GET(
   request: Request,
   context: RouteContext
 ) {
   try {
-    const { quizId } = context.params
+    const params = await context.params;
+    const { quizId } = params;
 
-    const quiz = await prisma.quiz.findUnique({
-      where: { id: quizId }
-    })
+    console.log('Buscando quiz:', quizId);
 
+    const quiz = await getQuizById(quizId);
     if (!quiz) {
       return NextResponse.json(
         { error: "Quiz não encontrado" },
         { status: 404 }
-      )
+      );
     }
 
-    const topResults = await prisma.result.groupBy({
-      by: ['playerName'],
-      where: { quizId },
-      _max: {
-        score: true,
-        totalQuestions: true,
-      },
-      orderBy: {
-        _max: {
-          score: 'desc'
-        }
-      },
-      take: 10
-    })
+    const results = await getTopResults(quizId);
+    return NextResponse.json(results);
 
-    const detailedResults = await Promise.all(
-      topResults.map(async (result: GroupByResult) => {
-        if (result._max.score === null) return null
-
-        return prisma.result.findFirst({
-          where: {
-            quizId,
-            playerName: result.playerName,
-            score: {
-              equals: result._max.score
-            }
-          },
-          orderBy: {
-            createdAt: 'desc'
-          }
-        })
-      })
-    )
-
-    const finalResults = detailedResults
-      .filter((result): result is NonNullable<typeof result> => result !== null)
-      .sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      })
-
-    return NextResponse.json(finalResults)
   } catch (error) {
-    console.error('Erro ao buscar resultados:', error)
-    return NextResponse.json({ results: [] })
+    console.error('Erro no GET:', error);
+    return NextResponse.json(
+      { error: "Erro interno do servidor" },
+      { status: 500 }
+    );
   }
 }
 
@@ -92,50 +122,42 @@ export async function POST(
   context: RouteContext
 ) {
   try {
-    const { quizId } = context.params
+    const params = await context.params;
+    const { quizId } = params;
 
-    const quiz = await prisma.quiz.findUnique({
-      where: { id: quizId }
-    })
-
+    // Validação do Quiz
+    const quiz = await getQuizById(quizId);
     if (!quiz) {
       return NextResponse.json(
         { error: "Quiz não encontrado" },
         { status: 404 }
-      )
+      );
     }
 
-    const body: ResultRequestBody = await request.json()
+    // Validação do body
+    const body: ResultRequestBody = await request.json();
+    if (!body.playerName || typeof body.score !== 'number' || typeof body.totalQuestions !== 'number') {
+      return NextResponse.json(
+        { error: "Dados inválidos" },
+        { status: 400 }
+      );
+    }
 
-    const recentResult = await prisma.result.findFirst({
-      where: {
-        quizId,
-        playerName: body.playerName,
-        createdAt: {
-          gte: new Date(Date.now() - 5000)
-        }
-      }
-    })
-
+    // Verifica submissão recente
+    const recentResult = await checkRecentResult(quizId, body.playerName);
     if (recentResult) {
-      return NextResponse.json(recentResult)
+      return NextResponse.json(recentResult);
     }
-    
-    const result = await prisma.result.create({
-      data: {
-        quizId,
-        playerName: body.playerName,
-        score: body.score,
-        totalQuestions: body.totalQuestions,
-      }
-    })
 
-    return NextResponse.json(result)
+    // Cria novo resultado
+    const result = await createResult(quizId, body);
+    return NextResponse.json(result);
+
   } catch (error) {
-    console.error('Erro ao salvar resultado:', error)
+    console.error('Erro no POST:', error);
     return NextResponse.json(
-      { error: "Erro ao salvar resultado" },
+      { error: "Erro interno do servidor" },
       { status: 500 }
-    )
+    );
   }
 }
