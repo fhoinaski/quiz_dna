@@ -7,12 +7,13 @@ interface ResultRequestBody {
   totalQuestions: number
 }
 
+// Corrigir a tipagem do contexto
 export async function GET(
   request: Request,
-  context: { params: { quizId: string } }
+  { params }: { params: { quizId: string } }
 ) {
   try {
-    const { quizId } = context.params
+    const { quizId } = params
 
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId }
