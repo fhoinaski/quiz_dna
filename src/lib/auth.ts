@@ -1,12 +1,7 @@
-// src/lib/auth.ts
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { compare } from "bcryptjs"
-import { PrismaClient } from '@prisma/client'
-
-// Criar uma instância dedicada para Auth
-// Esta abordagem evita problemas com a inicialização global
-const authPrisma = new PrismaClient()
+import { prisma } from "./prisma-client"
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -22,7 +17,7 @@ export const authOptions: NextAuthOptions = {
             return null
           }
 
-          const user = await authPrisma.user.findUnique({
+          const user = await prisma.user.findUnique({
             where: { email: credentials.email }
           })
 

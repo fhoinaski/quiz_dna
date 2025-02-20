@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prismadb } from '@/lib/prismadb'
+import { prisma } from '@/lib/prisma-client'
 import bcrypt from 'bcryptjs'
 
 export async function POST(request: Request) {
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
         }
 
         // Verifica se o email já está em uso
-        const existingUser = await prismadb.user.findUnique({
+        const existingUser = await prisma.user.findUnique({
             where: { email }
         })
 
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
         const hashedPassword = await bcrypt.hash(password, 10)
 
         // Cria o usuário
-        const user = await prismadb.user.create({
+        const user = await prisma.user.create({
             data: {
                 name,
                 email,

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { prismadb } from "@/lib/prismadb"
+import { prisma } from "@/lib/prisma-client"
 
 interface RouteContext {
   params: Promise<{ quizId: string }>
@@ -9,7 +9,7 @@ interface RouteContext {
 
 // Helper function para validar o quizId
 const validateQuizId = async (quizId: string) => {
-  const quiz = await prismadb.quiz.findUnique({
+  const quiz = await prisma.quiz.findUnique({
     where: { id: quizId }
   })
   return quiz
@@ -73,9 +73,9 @@ export async function DELETE(
     }
 
     // Usando transação para garantir a integridade dos dados
-    await prismadb.$transaction([
-      prismadb.result.deleteMany({ where: { quizId } }),
-      prismadb.quiz.delete({ where: { id: quizId } })
+    await prisma.$transaction([
+      prisma.result.deleteMany({ where: { quizId } }),
+      prisma.quiz.delete({ where: { id: quizId } })
     ])
 
     return NextResponse.json({
@@ -124,7 +124,7 @@ export async function PUT(
 
     const body = await request.json()
     
-    const updatedQuiz = await prismadb.quiz.update({
+    const updatedQuiz = await prisma.quiz.update({
       where: { id: quizId },
       data: {
         title: body.title,

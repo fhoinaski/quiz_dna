@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prismadb } from "@/lib/prismadb";
+import { prisma } from "@/lib/prisma-client"
 
 // Tipos
 interface ResultRequestBody {
@@ -15,7 +15,7 @@ interface RouteContext {
 // Funções auxiliares
 async function getQuizById(quizId: string) {
   try {
-    return await prismadb.quiz.findUnique({
+    return await prisma.quiz.findUnique({
       where: { id: quizId }
     });
   } catch (error) {
@@ -27,7 +27,7 @@ async function getQuizById(quizId: string) {
 async function getTopResults(quizId: string) {
   try {
     // Primeiro, pegamos os melhores resultados por jogador
-    const results = await prismadb.result.findMany({
+    const results = await prisma.result.findMany({
       where: { quizId },
       orderBy: [
         { score: 'desc' },
@@ -54,7 +54,7 @@ async function getTopResults(quizId: string) {
 
 async function createResult(quizId: string, data: ResultRequestBody) {
   try {
-    return await prismadb.result.create({
+    return await prisma.result.create({
       data: {
         quizId,
         playerName: data.playerName,
@@ -70,7 +70,7 @@ async function createResult(quizId: string, data: ResultRequestBody) {
 
 async function checkRecentResult(quizId: string, playerName: string) {
   try {
-    return await prismadb.result.findFirst({
+    return await prisma.result.findFirst({
       where: {
         quizId,
         playerName,

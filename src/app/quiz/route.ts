@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { prismadb } from "@/lib/prismadb"
+import { prisma } from "@/lib/prisma-client"
 
 // POST - Criar novo quiz
 export async function POST(request: Request) {
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     
-    const quiz = await prismadb.quiz.create({
+    const quiz = await prisma.quiz.create({
       data: {
         title: body.title,
         description: body.description,
@@ -47,7 +47,7 @@ export async function GET() {  // Removido o parâmetro request não utilizado
       )
     }
 
-    const quizzes = await prismadb.quiz.findMany({
+    const quizzes = await prisma.quiz.findMany({
       where: {
         userId: session.user.id
       },

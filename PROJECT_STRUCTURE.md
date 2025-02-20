@@ -1,6 +1,6 @@
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 20:22:35  
+**Gerado em:** 20/02/2025, 20:33:51  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -138,13 +138,10 @@ module.exports = nextConfig;
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate",
-    "prisma:studio": "prisma studio",
-    "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push"
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "schema": "prisma/schema.prisma"
@@ -162,6 +159,9 @@ module.exports = nextConfig;
     "mongodb": "^6.13.0",
     "next": "^15.1.7",
     "next-auth": "^4.24.11",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "shadcn-ui": "^0.9.4",
 // ... (conteúdo truncado)
 ```
 
@@ -173,7 +173,7 @@ module.exports = nextConfig;
 ```md
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 20:19:27  
+**Gerado em:** 20/02/2025, 20:26:19  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -329,13 +329,12 @@ export default function RegisterPage() {
           - 📄 route.ts
           
 ```typescript
+// src/app/api/auth/[...nextauth]/route.ts
 import NextAuth from "next-auth"
 import { authOptions } from "@/lib/auth"
 
-// Importar uma única vez e reutilizar o handler
+// Export simplificado
 const handler = NextAuth(authOptions)
-
-// Exportar o handler para GET e POST
 export { handler as GET, handler as POST }
           ```
 
@@ -347,7 +346,7 @@ export { handler as GET, handler as POST }
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { prismadb } from "@/lib/prismadb"
+import { prisma } from "@/lib/prisma-client"
 
 // POST - Criar novo quiz
 export async function POST(request: Request) {
@@ -362,7 +361,7 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     
-    const quiz = await prismadb.quiz.create({
+    const quiz = await prisma.quiz.create({
       data: {
         title: body.title,
         description: body.description,
@@ -382,7 +381,7 @@ export async function POST(request: Request) {
             
 ```typescript
 import { NextResponse } from "next/server";
-import { prismadb } from "@/lib/prismadb";
+import { prisma } from "@/lib/prisma-client"
 
 // Tipos
 interface ResultRequestBody {
@@ -398,7 +397,7 @@ interface RouteContext {
 // Funções auxiliares
 async function getQuizById(quizId: string) {
   try {
-    return await prismadb.quiz.findUnique({
+    return await prisma.quiz.findUnique({
       where: { id: quizId }
     });
   } catch (error) {
@@ -410,7 +409,7 @@ async function getQuizById(quizId: string) {
 async function getTopResults(quizId: string) {
   try {
     // Primeiro, pegamos os melhores resultados por jogador
-    const results = await prismadb.result.findMany({
+    const results = await prisma.result.findMany({
 // ... (conteúdo truncado)
             ```
 
@@ -420,7 +419,7 @@ async function getTopResults(quizId: string) {
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { prismadb } from "@/lib/prismadb"
+import { prisma } from "@/lib/prisma-client"
 
 interface RouteContext {
   params: Promise<{ quizId: string }>
@@ -428,7 +427,7 @@ interface RouteContext {
 
 // Helper function para validar o quizId
 const validateQuizId = async (quizId: string) => {
-  const quiz = await prismadb.quiz.findUnique({
+  const quiz = await prisma.quiz.findUnique({
     where: { id: quizId }
   })
   return quiz
@@ -758,7 +757,7 @@ export default function Home() {
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { prismadb } from "@/lib/prismadb"
+import { prisma } from "@/lib/prisma-client"
 
 // POST - Criar novo quiz
 export async function POST(request: Request) {
@@ -773,7 +772,7 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     
-    const quiz = await prismadb.quiz.create({
+    const quiz = await prisma.quiz.create({
       data: {
         title: body.title,
         description: body.description,
@@ -1494,12 +1493,7 @@ export const WelcomeScreen = () => {
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { compare } from "bcryptjs"
-import { prismadb } from "./prismadb"
-
-// Garantir que o prismadb esteja inicializado
-if (!prismadb) {
-  throw new Error("Prisma não foi inicializado corretamente")
-}
+import { prisma } from "./prisma-client"
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -1510,17 +1504,22 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Senha", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null
-        }
-
         try {
-          const user = await prismadb.user.findUnique({
+          if (!credentials?.email || !credentials?.password) {
+            return null
+          }
+
+          const user = await prisma.user.findUnique({
             where: { email: credentials.email }
           })
 
           if (!user) {
             return null
+          }
+
+          const isPasswordValid = await compare(
+            credentials.password, 
+            user.password
 // ... (conteúdo truncado)
     ```
 
@@ -1560,6 +1559,23 @@ main()
 // ... (conteúdo truncado)
     ```
 
+    - 📄 prisma-client.ts
+    
+```typescript
+import { PrismaClient } from '@prisma/client'
+
+// Declaramos uma variável global para o PrismaClient
+const globalForPrisma = global as unknown as { prisma: PrismaClient }
+
+// Exportamos uma única instância do PrismaClient
+export const prisma = globalForPrisma.prisma || new PrismaClient()
+
+// Em desenvolvimento, anexamos o cliente ao objeto global
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma
+}
+    ```
+
     - 📄 prisma.ts
     
 ```typescript
@@ -1586,21 +1602,28 @@ if (process.env.NODE_ENV !== 'production') {
     - 📄 prismadb.ts
     
 ```typescript
-
+// src/lib/prismadb.ts
 import { PrismaClient } from '@prisma/client'
 
-// Usa um nome diferente para evitar conflitos
-const globalForPrisma = global as unknown as { 
-  prismadb: PrismaClient | undefined 
+// Cria uma instância do Prisma Client
+let prismadb: PrismaClient
+
+// Em ambiente de produção, sempre cria uma nova instância
+if (process.env.NODE_ENV === 'production') {
+  prismadb = new PrismaClient()
+} 
+// Em desenvolvimento, reutiliza a conexão se já existir
+else {
+  // @ts-ignore - ignorar o erro de tipo global
+  if (!global.prismadb) {
+    // @ts-ignore - ignorar o erro de tipo global
+    global.prismadb = new PrismaClient()
+  }
+  // @ts-ignore - ignorar o erro de tipo global
+  prismadb = global.prismadb
 }
 
-// Inicializa o cliente apenas uma vez
-export const prismadb = globalForPrisma.prismadb || new PrismaClient()
-
-// Em desenvolvimento, salva a instância no global
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prismadb = prismadb
-}
+export { prismadb }
     ```
 
     - 📄 utils.ts
@@ -1861,8 +1884,11 @@ const config: Config = {
 
 ```json
 {
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
-  "framework": "nextjs"
+  "functions": {
+    "api/**/*": {
+      "memory": 1024
+    }
+  },
+  "buildCommand": "npm run build"
 }
 ```
