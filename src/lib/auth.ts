@@ -1,7 +1,12 @@
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { prisma } from "./prisma"
 import { compare } from "bcryptjs"
+import { prisma } from "./prisma"
+
+// Garantir que o prisma esteja inicializado
+if (!prisma) {
+  throw new Error("Prisma não foi inicializado corretamente")
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -13,34 +18,46 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Credenciais inválidas")
+          return null
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email }
-        })
+        try {
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email }
+          })
 
-        if (!user) {
-          throw new Error("Usuário não encontrado")
-        }
+          if (!user) {
+            return null
+          }
 
-        const isPasswordValid = await compare(
-          credentials.password, 
-          user.password
-        )
+          const isPasswordValid = await compare(
+            credentials.password, 
+            user.password
+          )
 
-        if (!isPasswordValid) {
-          throw new Error("Senha incorreta")
-        }
+          if (!isPasswordValid) {
+            return null
+          }
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name
+          }
+        } catch (error) {
+          console.error("Erro na autenticação:", error)
+          return null
         }
       }
     })
   ],
+  session: {
+    strategy: "jwt"
+  },
+  secret: process.env.NEXTAUTH_SECRET,
+  pages: {
+    signIn: "/login"
+  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -54,12 +71,5 @@ export const authOptions: NextAuthOptions = {
       }
       return session
     }
-  },
-  pages: {
-    signIn: "/auth/login",
-  },
-  session: {
-    strategy: "jwt"
-  },
-  secret: process.env.NEXTAUTH_SECRET
+  }
 }

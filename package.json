@@ -8,14 +8,12 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "test:db": "ts-node --project tsconfig.json src/lib/db.ts",
     "prisma:studio": "prisma studio",
     "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push",
-    "prisma:seed": "ts-node --project tsconfig.json prisma/seed.ts"
+    "prisma:push": "prisma db push"
   },
   "prisma": {
-    "seed": "ts-node --project tsconfig.json prisma/seed.ts"
+    "schema": "prisma/schema.prisma"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",

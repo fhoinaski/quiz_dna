@@ -1,16 +1,29 @@
-/**
- * @type {import('next').NextConfig}
- */
+/** @type {import('next').NextConfig} */
 const nextConfig = {
-    // Configuração para permitir a inicialização adequada do Prisma
+    // Otimização para o Prisma
     webpack: (config, { isServer }) => {
       if (isServer) {
-        // Adiciona um plugin para garantir que o Prisma seja gerado corretamente 
-        // durante o build da Vercel
-        config.externals = [...config.externals, '_http_common']
+        // Adiciona módulos específicos aos externals para garantir compatibilidade
+        if (!config.externals) {
+          config.externals = [];
+        } else if (!Array.isArray(config.externals)) {
+          config.externals = [config.externals];
+        }
+        
+        config.externals.push(
+          '_http_common',
+          'encoding'
+        );
       }
-      return config
+      
+      return config;
     },
-  }
+    experimental: {
+      // Habilita a otimização do Edge Runtime se necessário
+      serverActions: {
+        allowedOrigins: ['localhost:3000', '*.vercel.app'],
+      },
+    },
+  };
   
   export default nextConfig;
