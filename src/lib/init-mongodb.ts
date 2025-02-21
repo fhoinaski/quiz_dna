@@ -1,6 +1,11 @@
 import { connectToDatabase } from "./mongodb";
-import { User } from "@/models";
+// import mongoose, { Model } from "mongoose";
+import { IUser, User } from "@/models";
 import bcrypt from "bcryptjs";
+import { Model } from "mongoose";
+
+// Tipando o modelo User explicitamente
+type UserModel = Model<IUser>;
 
 async function initMongoDB() {
   try {
@@ -9,24 +14,24 @@ async function initMongoDB() {
     console.log("Conexão com MongoDB estabelecida com sucesso!");
 
     // Verifica se existe algum usuário
-    const userCount = await User.countDocuments();
-    
+    const userCount = await (User as UserModel).countDocuments();
+
     if (userCount === 0) {
       console.log("Nenhum usuário encontrado. Criando usuário de teste...");
-      
+
       // Cria um usuário de teste
       const hashedPassword = await bcrypt.hash("123456", 10);
-      
-      const testUser = await User.create({
+
+      const testUser = await (User as UserModel).create({
         name: "Usuário Teste",
         email: "teste@exemplo.com",
-        password: hashedPassword
+        password: hashedPassword,
       });
-      
+
       console.log("Usuário de teste criado com sucesso:", {
-        id: testUser._id,
+        id: testUser._id.toString(),
         name: testUser.name,
-        email: testUser.email
+        email: testUser.email,
       });
     } else {
       console.log(`${userCount} usuário(s) encontrado(s) no banco de dados.`);
@@ -37,7 +42,7 @@ async function initMongoDB() {
 }
 
 // Executar em ambiente de desenvolvimento
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== "production") {
   initMongoDB();
 }
 

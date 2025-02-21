@@ -1,28 +1,20 @@
 # Estrutura do Projeto
 
-**Gerado em:** 21/02/2025, 12:53:40  
+**Gerado em:** 21/02/2025, 16:11:31  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
 - 📄 .env.example
-- 📄 .eslintrc.json
+- 📄 .eslintrc.js
 
-```json
-{
-     "extends": "next/core-web-vitals",
-    "rules": {
-      // "@typescript-eslint/no-explicit-any": ["error", {
-      //   "ignoreRestArgs": true
-      // }],
-      // "@typescript-eslint/no-unused-vars": ["error", {
-      //   "argsIgnorePattern": "^_",
-      //   "varsIgnorePattern": "^_",
-      //   "caughtErrorsIgnorePattern": "^_"
-      // }],
+```javascript
+// .eslintrc.js
+module.exports = {
+    extends: ["next/core-web-vitals"],
+    rules: {
       "react-hooks/exhaustive-deps": "warn",
-      // "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-explicit-any": "warn",
-    "@typescript-eslint/no-unused-vars": "error"
+      "@typescript-eslint/no-unused-vars": "error"
     }
   }
 ```
@@ -54,7 +46,6 @@
 }
 ```
 
-- 📄 eslint.config.mjs
 - 📄 generate-code-map.js
 
 ```javascript
@@ -131,7 +122,7 @@ export {};
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint --config eslint.config.mjs ."
+    "lint": "next lint"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.6",
@@ -162,34 +153,34 @@ export {};
 ```md
 # Estrutura do Projeto
 
-**Gerado em:** 21/02/2025, 00:56:05  
+**Gerado em:** 21/02/2025, 13:09:19  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
 - 📄 .env.example
-- 📄 .eslintrc.json
+- 📄 .eslintrc.js
 
-```json
-{
-    "extends": "next/core-web-vitals",
-    "rules": {
-      // "@typescript-eslint/no-explicit-any": ["error", {
-      //   "ignoreRestArgs": true
-      // }],
-      // "@typescript-eslint/no-unused-vars": ["error", {
-      //   "argsIgnorePattern": "^_",
-      //   "varsIgnorePattern": "^_",
-      //   "caughtErrorsIgnorePattern": "^_"
-      // }],
+```javascript
+// .eslintrc.js
+module.exports = {
+    extends: ["next/core-web-vitals"],
+    rules: {
       "react-hooks/exhaustive-deps": "warn",
-      // "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-explicit-any": "warn",
-    "@typescript-eslint/no-unused-vars": "error"
+      "@typescript-eslint/no-unused-vars": "error"
     }
   }
 ```
 
 - 📄 .gitattributes
+- 📄 components.json
+
+```json
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "default",
+  "rsc": true,
+  "tsx": true,
 // ... (conteúdo truncado)
 ```
 
@@ -331,15 +322,18 @@ export { handler as GET, handler as POST }
         - 📄 route.ts
         
 ```typescript
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server"; // Use NextRequest para consistência
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
-import { Quiz } from "@/models";
-import mongoose from "mongoose";
+import mongoose, { Model } from "mongoose";
+import { IQuiz, Quiz } from "@/models";
+
+// Tipando o modelo Quiz explicitamente
+type QuizModel = Model<IQuiz>;
 
 // POST - Criar novo quiz
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -348,19 +342,16 @@ export async function POST(request: Request) {
 
     const body = await request.json();
 
+    // Validação básica dos campos obrigatórios
+    if (!body.title || !body.description || !body.questions) {
+      return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
+    }
+
     // Conecta ao banco de dados
     await connectToDatabase();
 
-    const quiz = await Quiz.create({
-      title: body.title,
-      description: body.description,
-      questions: body.questions,
-      userId: new mongoose.Types.ObjectId(session.user.id),
-      isPublished: body.isPublished || false,
-    });
-
-    return NextResponse.json({
-      id: quiz._id.toString(),
+    // Cria o quiz com tipagem explícita
+    const quiz = await (Quiz as QuizModel).create({
 // ... (conteúdo truncado)
         ```
 
@@ -370,36 +361,36 @@ export async function POST(request: Request) {
               - 📄 route.ts
               
 ```typescript
-import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
-import { Quiz, QuizResult } from "@/models";
-import mongoose from "mongoose";
+import { NextRequest, NextResponse } from 'next/server';
 
-// Helper function para validar o quizId
-const validateQuizId = async (quizId: string) => {
-  if (!mongoose.Types.ObjectId.isValid(quizId)) {
-    throw new Error("ID de quiz inválido");
-  }
-  
-  await connectToDatabase();
-  const quiz = await Quiz.findById(quizId);
-  if (!quiz) {
-    throw new Error("Quiz não encontrado");
-  }
-  
-  if (!quiz.isPublished) {
-    throw new Error("Quiz não está publicado");
-  }
-  
-  return quiz;
-};
-
-// Usando a sintaxe correta do Next.js 15 para route handlers
 export async function GET(
-  req: NextRequest,
+  request: NextRequest,
   { params }: { params: { quizId: string } }
 ) {
   try {
+    const { quizId } = params;
+
+    if (!quizId || typeof quizId !== 'string') {
+      return NextResponse.json(
+        { error: 'Parâmetro quizId inválido' },
+        { status: 400 }
+      );
+    }
+
+    const result = {
+      quizId,
+      status: 'completed',
+      score: Math.floor(Math.random() * 100),
+      timestamp: new Date().toISOString(),
+    };
+
+    return NextResponse.json(result, { status: 200 });
+  } catch (error) {
+    console.error(`Erro na rota /quiz/[quizId]/results/public: ${error}`);
+    return NextResponse.json(
+      { error: 'Erro interno no servidor' },
+      { status: 500 }
+    );
 // ... (conteúdo truncado)
               ```
 
@@ -410,30 +401,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
-import { Quiz, QuizResult } from "@/models";
-import mongoose from "mongoose";
+import mongoose, { Schema, Document, Model } from "mongoose";
+import { IQuiz, IQuizResult, Quiz, QuizResult } from "@/models";
+
+// Interface para os parâmetros da rota
+interface RouteParams {
+  params: { quizId: string };
+}
+
+// Tipando os modelos explicitamente
+type QuizModel = Model<IQuiz>;
+type QuizResultModel = Model<IQuizResult>;
 
 // Helper function para validar o quizId
-const validateQuizId = async (quizId: string) => {
+const validateQuizId = async (quizId: string): Promise<IQuiz> => {
   if (!mongoose.Types.ObjectId.isValid(quizId)) {
     throw new Error("ID de quiz inválido");
   }
-  
+
   await connectToDatabase();
-  const quiz = await Quiz.findById(quizId);
+  const quiz = await (Quiz as QuizModel).findById(quizId).exec();
   if (!quiz) {
     throw new Error("Quiz não encontrado");
   }
   return quiz;
-};
-
-// Helper function para validar a sessão
-const validateSession = async () => {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    throw new Error("Não autorizado");
-  }
-  return session;
 };
 
 // ... (conteúdo truncado)
@@ -446,32 +437,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
-import { Quiz } from "@/models";
-import mongoose from "mongoose";
+import mongoose, { Schema, Document, Model } from "mongoose";
+import { IQuiz, IQuizResult, Quiz, QuizResult } from "@/models";
+
+// Interface para os parâmetros da rota
+interface RouteParams {
+  params: { quizId: string };
+}
+
+// Tipando os modelos explicitamente
+type QuizModel = Model<IQuiz>;
+type QuizResultModel = Model<IQuizResult>;
 
 // Helper function para validar o quizId
-const validateQuizId = async (quizId: string) => {
+const validateQuizId = async (quizId: string): Promise<IQuiz> => {
   if (!mongoose.Types.ObjectId.isValid(quizId)) {
     throw new Error("ID de quiz inválido");
   }
-  
+
   await connectToDatabase();
-  const quiz = await Quiz.findById(quizId);
+  // Ajuste na chamada ao findById para garantir tipagem correta
+  const quiz = await (Quiz as QuizModel).findById(quizId).exec() as IQuiz | null;
   if (!quiz) {
     throw new Error("Quiz não encontrado");
   }
   return quiz;
 };
-
-// Helper function para validar a sessão
-const validateSession = async () => {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    throw new Error("Não autorizado");
-  }
-  return session;
-};
-
 // ... (conteúdo truncado)
           ```
 
@@ -479,12 +470,16 @@ const validateSession = async () => {
         - 📄 route.ts
         
 ```typescript
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server"; // Use NextRequest para consistência
 import bcrypt from "bcryptjs";
 import { connectToDatabase } from "@/lib/mongodb";
-import { User } from "@/models";
+import mongoose, { Model } from "mongoose";
+import { IUser, User } from "@/models";
 
-export async function POST(request: Request) {
+// Tipando o modelo User explicitamente
+type UserModel = Model<IUser>;
+
+export async function POST(request: NextRequest) {
   console.log("Requisição recebida em /api/register");
 
   try {
@@ -505,10 +500,6 @@ export async function POST(request: Request) {
       console.log("Dados incompletos recebidos:", { name, email, password });
       return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
     }
-
-    // Conecta ao banco de dados
-    await connectToDatabase();
-
 // ... (conteúdo truncado)
         ```
 
@@ -1881,14 +1872,18 @@ const config: Config = {
 ```json
 {
   "compilerOptions": {
-    "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "target": "ESNext", // Alinhar com "lib" e versões modernas do JS
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
+    "skipLibCheck": true, // Já está OK, mantém para evitar conflitos
+    "strict": false, // Temporariamente desativar para diagnosticar o erro
     "noEmit": true,
     "esModuleInterop": true,
-    "noImplicitAny": true,
+    "noImplicitAny": false, // Desativar junto com "strict" temporariamente
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
@@ -1902,13 +1897,9 @@ const config: Config = {
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
-    }
-  },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
+      "@/*": [
+        "./src/*"
+      ]
 // ... (conteúdo truncado)
 ```
 

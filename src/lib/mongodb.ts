@@ -6,22 +6,27 @@ if (!MONGODB_URI) {
   throw new Error('Por favor defina a variável de ambiente MONGODB_URI');
 }
 
-/**
- * Variável global para manter a conexão com o MongoDB entre hot reloads no desenvolvimento
- */
-declare global {
-  var mongoose: {
-    conn: typeof mongoose | null;
-    promise: Promise<typeof mongoose> | null;
-  };
+// Interface para nossa cache global
+interface MongooseCache {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
 }
+
+// Cache para conexão
+const globalForMongoose = global as unknown as {
+  mongoose: MongooseCache | undefined;
+};
 
 // Em desenvolvimento, usamos uma variável global para preservar a conexão
 // entre hot reloads, caso contrário, em produção usamos uma conexão normal
-let cached = global.mongoose;
+const cached: MongooseCache = globalForMongoose.mongoose ?? {
+  conn: null,
+  promise: null
+};
 
-if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
+// Inicializa a cache global na primeira execução
+if (!globalForMongoose.mongoose) {
+  globalForMongoose.mongoose = cached;
 }
 
 export async function connectToDatabase() {
@@ -35,10 +40,11 @@ export async function connectToDatabase() {
     };
 
     cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
+      console.log('Conexão com MongoDB estabelecida');
       return mongoose;
     });
   }
-  
+
   try {
     cached.conn = await cached.promise;
   } catch (e) {
@@ -47,9 +53,4 @@ export async function connectToDatabase() {
   }
 
   return cached.conn;
-}
-
-// Conexão automática ao banco de dados na inicialização em produção
-if (process.env.NODE_ENV === 'production') {
-  connectToDatabase();
 }

@@ -2,7 +2,11 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { connectToDatabase } from "./mongodb";
-import { User } from "@/models";
+import { Model } from "mongoose";
+import { IUser, User } from "@/models";
+
+// Tipando o modelo User explicitamente
+type UserModel = Model<IUser>;
 
 export const authOptions: NextAuthOptions = {
   // Provedores de autenticação
@@ -23,8 +27,8 @@ export const authOptions: NextAuthOptions = {
           // Conecta ao banco de dados
           await connectToDatabase();
 
-          // Busca o usuário no banco de dados
-          const user = await User.findOne({ email: credentials.email });
+          // Busca o usuário no banco de dados com tipagem explícita
+          const user = await (User as UserModel).findOne({ email: credentials.email }).exec();
 
           // Se o usuário não existir, retorna null
           if (!user) {
