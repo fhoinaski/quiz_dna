@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "vercel-build": "node vercel-build.js"
-  },
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "lint": "next lint",
+  "vercel-build": "node vercel-build.js"
+},
   "prisma": {
     "schema": "prisma/schema.prisma"
   },
