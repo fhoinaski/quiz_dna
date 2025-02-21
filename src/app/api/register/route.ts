@@ -47,8 +47,8 @@ export async function POST(request: Request) {
     });
     console.log("Usuário criado com sucesso:", user.id);
 
-    // Remove a senha do retorno
-    const { password: _, ...userWithoutPassword } = user;
+   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   const { password: _, ...userWithoutPassword } = user;
 
     // Retorna a resposta com status explícito
     console.log("Retornando resposta ao cliente:", userWithoutPassword);
