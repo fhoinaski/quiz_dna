@@ -1,6 +1,6 @@
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 21:41:29  
+**Gerado em:** 20/02/2025, 22:48:04  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -148,11 +148,12 @@ exports.handler = async function(event, context) {
   "name": "dna-vital-quiz-next",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
+ "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "vercel-build": "node vercel-build.js"
   },
   "prisma": {
     "schema": "prisma/schema.prisma"
@@ -173,7 +174,6 @@ exports.handler = async function(event, context) {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "shadcn-ui": "^0.9.4",
-    "tailwind-merge": "^3.0.1",
 // ... (conteúdo truncado)
 ```
 
@@ -185,7 +185,7 @@ exports.handler = async function(event, context) {
 ```md
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 21:31:07  
+**Gerado em:** 20/02/2025, 21:41:29  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -1502,36 +1502,36 @@ export const WelcomeScreen = () => {
     - 📄 auth.ts
     
 ```typescript
-import { NextAuthOptions } from "next-auth"
-import CredentialsProvider from "next-auth/providers/credentials"
-import { compare } from "bcryptjs"
-import prisma from "./prisma-client";
-
-// Verificação para garantir que o Prisma foi inicializado
-if (!prisma) {
-  throw new Error("Prisma não foi inicializado. Verifique a configuração.")
-}
+import { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { compare } from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
+  // Provedores de autenticação
   providers: [
     CredentialsProvider({
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Senha", type: "password" }
+        password: { label: "Senha", type: "password" },
       },
       async authorize(credentials) {
+        // Importação dinâmica do Prisma Client
+        const prisma = (await import("./prisma-client")).default;
+
         try {
+          // Verifica se as credenciais foram fornecidas
           if (!credentials?.email || !credentials?.password) {
-            return null
+            return null;
           }
 
+          // Busca o usuário no banco de dados
           const user = await prisma.user.findUnique({
-            where: { email: credentials.email }
-          })
+            where: { email: credentials.email },
+          });
 
+          // Se o usuário não existir, retorna null
           if (!user) {
-            return null
 // ... (conteúdo truncado)
     ```
 
@@ -1576,12 +1576,18 @@ main()
 ```typescript
 import { PrismaClient } from '@prisma/client';
 
-// Criação simples de uma única instância do Prisma
-const prisma = new PrismaClient({
-  log: process.env.NODE_ENV === 'development' 
-    ? ['query', 'error', 'warn'] 
-    : ['error'],
-});
+let prisma: PrismaClient;
+
+if (process.env.NODE_ENV === 'production') {
+  prisma = new PrismaClient();
+} else {
+  if (!global.prisma) {
+    global.prisma = new PrismaClient({
+      log: ['query', 'error', 'warn'],
+    });
+  }
+  prisma = global.prisma;
+}
 
 export default prisma;
     ```
@@ -1845,18 +1851,25 @@ const config: Config = {
 ```javascript
 const { execSync } = require('child_process');
 
-execSync('prisma generate', { stdio: 'inherit' });
-execSync('prisma db push', { stdio: 'inherit' });
+console.log('Generating Prisma Client...');
+execSync('npx prisma generate', { stdio: 'inherit' });
+
+console.log('Building Next.js app...');
+execSync('next build', { stdio: 'inherit' });
 ```
 
 - 📄 vercel.json
 
 ```json
 {
-  "functions": {
-    "src/app/api/**/*": {
-      "memory": 1024
+  "builds": [
+    {
+      "src": "./src/app/**/*",
+      "use": "@vercel/next"
     }
+  ],
+  "cache": {
+    "disable": true
   }
 }
 ```
