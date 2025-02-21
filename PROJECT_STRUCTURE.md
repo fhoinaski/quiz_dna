@@ -1,6 +1,6 @@
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 23:48:33  
+**Gerado em:** 21/02/2025, 00:36:19  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -94,39 +94,18 @@ function buildMarkdown(structure, depth = 0) {
 - 📄 global.d.ts
 
 ```typescript
+import mongoose from 'mongoose';
+
 declare global {
-    var prisma: import('@prisma/client').PrismaClient | undefined;
-  }
-  
-  // Isso é necessário para que o TypeScript trate este arquivo como um módulo
-  export {};
+  var mongoose: {
+    conn: typeof mongoose | null;
+    promise: Promise<typeof mongoose> | null;
+  };
+}
+
+// Isso é necessário para que o TypeScript trate este arquivo como um módulo
+export {};
 ```
-
-- 📁 netlify/
-  - 📁 functions/
-    - 📄 postinstall.js
-    
-```javascript
-// netlify/functions/postinstall.js
-const { execSync } = require('child_process');
-
-exports.handler = async function(event, context) {
-  try {
-    console.log('Gerando Prisma Client...');
-    execSync('npx prisma generate');
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ message: 'Prisma Client gerado com sucesso' })
-    };
-  } catch (error) {
-    console.error('Erro ao gerar Prisma Client:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Falha ao gerar Prisma Client' })
-    };
-  }
-};
-    ```
 
 - 📄 netlify.toml
 - 📄 next-env.d.ts
@@ -148,18 +127,13 @@ exports.handler = async function(event, context) {
   "name": "dna-vital-quiz-next",
   "version": "0.1.0",
   "private": true,
- "scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start",
-  "lint": "next lint",
-  "vercel-build": "node vercel-build.js"
-},
-  "prisma": {
-    "schema": "prisma/schema.prisma"
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
-    "@prisma/client": "^6.4.1",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-slot": "^1.1.2",
     "bcryptjs": "^3.0.2",
@@ -168,24 +142,27 @@ exports.handler = async function(event, context) {
     "framer-motion": "^12.4.5",
     "gsap": "^3.12.7",
     "lucide-react": "^0.475.0",
-    "mongodb": "^6.13.0",
+    "mongoose": "^8.2.0",
     "next": "^15.1.7",
     "next-auth": "^4.24.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "shadcn-ui": "^0.9.4",
+    "tailwind-merge": "^2.2.0",
+    "tailwindcss-animate": "^1.0.7",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
 // ... (conteúdo truncado)
 ```
 
 - 📄 postcss.config.mjs
-- 📁 prisma/
-  - 📄 schema.prisma
 - 📄 PROJECT_STRUCTURE.md
 
 ```md
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 22:48:04  
+**Gerado em:** 21/02/2025, 00:02:09  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -225,36 +202,36 @@ exports.handler = async function(event, context) {
 - 📄 README.md
 
 ```md
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Migração de Prisma para Mongoose
 
-## Getting Started
+Este guia explica as mudanças feitas para migrar o projeto do Prisma para o Mongoose.
 
-First, run the development server:
+## Mudanças Principais
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. **Instalação do Mongoose**: Removemos o Prisma e instalamos o Mongoose como ORM para MongoDB.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. **Modelos de Dados**: Criamos modelos Mongoose equivalentes aos modelos Prisma anteriores:
+   - User
+   - Quiz
+   - QuizResult
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. **Conexão com o Banco de Dados**: Implementamos um sistema de conexão persistente com o MongoDB.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. **APIs**: Atualizamos todas as APIs para usar o Mongoose em vez do Prisma.
 
-## Learn More
+5. **Tipos**: Atualizamos as definições de tipos para refletir a estrutura do MongoDB.
 
-To learn more about Next.js, take a look at the following resources:
+## Como configurar o projeto
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Crie um arquivo `.env` com base no `.env.example` fornecido e configure sua URI do MongoDB.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. Instale as dependências:
+   ```
+   npm install
+   ```
+
+3. Execute o projeto em desenvolvimento:
+   ```
 // ... (conteúdo truncado)
 ```
 
@@ -357,10 +334,12 @@ export { handler as GET, handler as POST }
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { connectToDatabase } from "@/lib/mongodb";
+import { Quiz } from "@/models";
+import mongoose from "mongoose";
 
 // POST - Criar novo quiz
 export async function POST(request: Request) {
-  const prisma = (await import("@/lib/prisma-client")).default;
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -369,59 +348,94 @@ export async function POST(request: Request) {
 
     const body = await request.json();
 
-    const quiz = await prisma.quiz.create({
-      data: {
-        title: body.title,
-        description: body.description,
-        questions: body.questions,
-        userId: session.user.id,
-        isPublished: body.isPublished || false,
-      },
+    // Conecta ao banco de dados
+    await connectToDatabase();
+
+    const quiz = await Quiz.create({
+      title: body.title,
+      description: body.description,
+      questions: body.questions,
+      userId: new mongoose.Types.ObjectId(session.user.id),
+      isPublished: body.isPublished || false,
     });
 
-    return NextResponse.json(quiz);
-  } catch (error) {
-    console.error("Erro ao criar quiz:", error);
-    return NextResponse.json({ error: "Erro ao criar quiz" }, { status: 500 });
-  }
+    return NextResponse.json({
+      id: quiz._id.toString(),
 // ... (conteúdo truncado)
         ```
 
         - 📁 [quizId]/
           - 📁 results/
+            - 📁 public/
+              - 📄 route.ts
+              
+```typescript
+import { NextResponse } from "next/server";
+import { connectToDatabase } from "@/lib/mongodb";
+import { Quiz, QuizResult } from "@/models";
+import mongoose from "mongoose";
+
+interface RouteContext {
+  params: { quizId: string };
+}
+
+// Definindo uma interface que corresponda aos resultados que vamos receber
+interface QuizResultDocument {
+  _id: mongoose.Types.ObjectId | string;
+  quizId: mongoose.Types.ObjectId | string;
+  playerName: string;
+  score: number;
+  totalQuestions: number;
+  createdAt: Date;
+}
+
+// Helper function para validar o quizId
+const validateQuizId = async (quizId: string) => {
+  if (!mongoose.Types.ObjectId.isValid(quizId)) {
+    throw new Error("ID de quiz inválido");
+  }
+  
+  await connectToDatabase();
+  const quiz = await Quiz.findById(quizId);
+  if (!quiz) {
+    throw new Error("Quiz não encontrado");
+  }
+// ... (conteúdo truncado)
+              ```
+
             - 📄 route.ts
             
 ```typescript
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { connectToDatabase } from "@/lib/mongodb";
+import { Quiz, QuizResult } from "@/models";
+import mongoose from "mongoose";
 
 interface RouteContext {
-  params: Promise<{ quizId: string }>;
+  params: { quizId: string };
 }
+
+// Type genérico para resultados do lean()
+type MongooseLeanDocument = {
+  _id: any;
+  [key: string]: any;
+};
 
 // Helper function para validar o quizId
 const validateQuizId = async (quizId: string) => {
-  const prisma = (await import("@/lib/prisma-client")).default;
-  const quiz = await prisma.quiz.findUnique({
-    where: { id: quizId },
-  });
+  if (!mongoose.Types.ObjectId.isValid(quizId)) {
+    throw new Error("ID de quiz inválido");
+  }
+  
+  await connectToDatabase();
+  const quiz = await Quiz.findById(quizId);
+  if (!quiz) {
+    throw new Error("Quiz não encontrado");
+  }
   return quiz;
 };
-
-// Helper function para validar a sessão
-const validateSession = async () => {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    throw new Error("Não autorizado");
-  }
-  return session;
-};
-
-export async function GET(request: Request, { params }: RouteContext) {
-  try {
-    const { quizId } = await params;
-    const quiz = await validateQuizId(quizId);
 // ... (conteúdo truncado)
             ```
 
@@ -431,17 +445,25 @@ export async function GET(request: Request, { params }: RouteContext) {
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { connectToDatabase } from "@/lib/mongodb";
+import { Quiz } from "@/models";
+import mongoose from "mongoose";
 
 interface RouteContext {
-  params: Promise<{ quizId: string }>;
+  params: { quizId: string }; // Tipagem correta: não é uma Promise
 }
 
 // Helper function para validar o quizId
 const validateQuizId = async (quizId: string) => {
-  const prisma = (await import("@/lib/prisma-client")).default;
-  const quiz = await prisma.quiz.findUnique({
-    where: { id: quizId },
-  });
+  if (!mongoose.Types.ObjectId.isValid(quizId)) {
+    throw new Error("ID de quiz inválido");
+  }
+  
+  await connectToDatabase();
+  const quiz = await Quiz.findById(quizId);
+  if (!quiz) {
+    throw new Error("Quiz não encontrado");
+  }
   return quiz;
 };
 
@@ -450,14 +472,6 @@ const validateSession = async () => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     throw new Error("Não autorizado");
-  }
-  return session;
-};
-
-export async function GET(request: Request, { params }: RouteContext) {
-  try {
-    const { quizId } = await params;
-    const quiz = await validateQuizId(quizId);
 // ... (conteúdo truncado)
           ```
 
@@ -467,34 +481,34 @@ export async function GET(request: Request, { params }: RouteContext) {
 ```typescript
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { connectToDatabase } from "@/lib/mongodb";
+import { User } from "@/models";
 
 export async function POST(request: Request) {
-  const prisma = (await import("@/lib/prisma-client")).default;
+  console.log("Requisição recebida em /api/register");
+
   try {
-    const body = await request.json();
+    // Tenta parsear o corpo da requisição com segurança
+    let body;
+    try {
+      body = await request.json();
+      console.log("Corpo da requisição recebido:", body);
+    } catch (jsonError) {
+      console.error("Erro ao parsear JSON da requisição:", jsonError);
+      return NextResponse.json({ error: "Formato de dados inválido" }, { status: 400 });
+    }
+
     const { name, email, password } = body;
 
+    // Verifica se todos os campos necessários estão presentes
     if (!name || !email || !password) {
+      console.log("Dados incompletos recebidos:", { name, email, password });
       return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
     }
 
-    // Verifica se o email já está em uso
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    // Conecta ao banco de dados
+    await connectToDatabase();
 
-    if (existingUser) {
-      return NextResponse.json({ error: "Email já está em uso" }, { status: 400 });
-    }
-
-    // Criptografa a senha
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Cria o usuário
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
 // ... (conteúdo truncado)
         ```
 
@@ -826,14 +840,14 @@ interface Quiz {
   title: string
 }
 
-
-
 export default function RankingPage() {
   const params = useParams()
   const quizId = params.quizId as string
   const [results, setResults] = useState<Result[]>([])
   const [quiz, setQuiz] = useState<Quiz | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
 // ... (conteúdo truncado)
           ```
 
@@ -973,20 +987,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-
-type Quiz = {
-  id: string
-  title: string
-  description: string
-  _count?: {
-    results: number
-  }
-  createdAt: string
-  isPublished: boolean
-}
+import type { QuizWithResultCount } from "@/types"
 
 export function QuizList() {
-  const [quizzes, setQuizzes] = useState<Quiz[]>([])
+  const [quizzes, setQuizzes] = useState<QuizWithResultCount[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [quizToDelete, setQuizToDelete] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchQuizzes()
+  }, [])
+
+  const fetchQuizzes = async () => {
 // ... (conteúdo truncado)
       ```
 
@@ -1007,22 +1021,22 @@ type ResultsTableProps = {
 export function ResultsTable({ quizId }: ResultsTableProps) {
   const [results, setResults] = useState<QuizResult[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const fetchResults = useCallback(async () => {
     try {
+      setLoading(true)
       const response = await fetch(`/api/quiz/${quizId}/results`)
-      const data = await response.json()
-      setResults(data)
-    } catch (error) {
-      console.error('Erro ao carregar resultados:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [quizId])
-
-  useEffect(() => {
-    const fetchData = async () => {
-      await fetchResults()
+      
+      if (!response.ok) {
+        throw new Error('Falha ao carregar resultados')
+      }
+      
+      const data = await response.json() as QuizResult[]
+      
+      // Remover resultados duplicados baseados no playerName (mantém o de maior pontuação)
+      const uniqueResults = data.reduce<Record<string, QuizResult>>((acc, current) => {
+        // Se é a primeira vez que vemos esse playerName ou o score é maior que o existente
 // ... (conteúdo truncado)
       ```
 
@@ -1469,6 +1483,8 @@ export const WelcomeScreen = () => {
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
+import { connectToDatabase } from "./mongodb";
+import { User } from "@/models";
 
 export const authOptions: NextAuthOptions = {
   // Provedores de autenticação
@@ -1480,19 +1496,17 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Senha", type: "password" },
       },
       async authorize(credentials) {
-        // Importação dinâmica do Prisma Client
-        const prisma = (await import("./prisma-client")).default;
+        // Verifica se as credenciais foram fornecidas
+        if (!credentials?.email || !credentials?.password) {
+          return null;
+        }
 
         try {
-          // Verifica se as credenciais foram fornecidas
-          if (!credentials?.email || !credentials?.password) {
-            return null;
-          }
+          // Conecta ao banco de dados
+          await connectToDatabase();
 
           // Busca o usuário no banco de dados
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email },
-          });
+          const user = await User.findOne({ email: credentials.email });
 
           // Se o usuário não existir, retorna null
           if (!user) {
@@ -1535,25 +1549,76 @@ main()
 // ... (conteúdo truncado)
     ```
 
-    - 📄 prisma-client.ts
+    - 📄 init-mongodb.ts
     
 ```typescript
-import { PrismaClient } from '@prisma/client';
+import { connectToDatabase } from "./mongodb";
+import { User } from "@/models";
+import bcrypt from "bcryptjs";
 
-let prisma: PrismaClient;
+async function initMongoDB() {
+  try {
+    console.log("Conectando ao MongoDB...");
+    await connectToDatabase();
+    console.log("Conexão com MongoDB estabelecida com sucesso!");
 
-if (process.env.NODE_ENV === 'production') {
-  prisma = new PrismaClient();
-} else {
-  if (!global.prisma) {
-    global.prisma = new PrismaClient({
-      log: ['query', 'error', 'warn'],
-    });
-  }
-  prisma = global.prisma;
+    // Verifica se existe algum usuário
+    const userCount = await User.countDocuments();
+    
+    if (userCount === 0) {
+      console.log("Nenhum usuário encontrado. Criando usuário de teste...");
+      
+      // Cria um usuário de teste
+      const hashedPassword = await bcrypt.hash("123456", 10);
+      
+      const testUser = await User.create({
+        name: "Usuário Teste",
+        email: "teste@exemplo.com",
+        password: hashedPassword
+      });
+      
+      console.log("Usuário de teste criado com sucesso:", {
+        id: testUser._id,
+        name: testUser.name,
+        email: testUser.email
+      });
+// ... (conteúdo truncado)
+    ```
+
+    - 📄 mongodb.ts
+    
+```typescript
+import mongoose from 'mongoose';
+
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+  throw new Error('Por favor defina a variável de ambiente MONGODB_URI');
 }
 
-export default prisma;
+/**
+ * Variável global para manter a conexão com o MongoDB entre hot reloads no desenvolvimento
+ */
+declare global {
+  var mongoose: {
+    conn: typeof mongoose | null;
+    promise: Promise<typeof mongoose> | null;
+  };
+}
+
+// Em desenvolvimento, usamos uma variável global para preservar a conexão
+// entre hot reloads, caso contrário, em produção usamos uma conexão normal
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
+export async function connectToDatabase() {
+  if (cached.conn) {
+    return cached.conn;
+  }
+// ... (conteúdo truncado)
     ```
 
     - 📄 utils.ts
@@ -1596,6 +1661,43 @@ export const config = {
   matcher: ['/dashboard/:path*', '/login', '/register']
 }
   ```
+
+  - 📁 models/
+    - 📄 index.ts
+    
+```typescript
+import mongoose, { Document, Schema } from 'mongoose';
+
+// Interfaces
+export interface IUser extends Document {
+  name: string;
+  email: string;
+  password: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IQuestion {
+  text: string;
+  options: string[];
+  correctAnswer: number;
+  order: number;
+}
+
+export interface IQuiz extends Document {
+  title: string;
+  description: string;
+  questions: IQuestion[];
+  userId: mongoose.Types.ObjectId;
+  isPublished: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IQuizResult extends Document {
+  quizId: mongoose.Types.ObjectId;
+// ... (conteúdo truncado)
+    ```
 
   - 📁 providers/
     - 📄 SessionProvider.tsx
@@ -1640,14 +1742,14 @@ type QuizStore = {
   playerName: string
   currentQuestionIndex: number
   score: number
+  selectedAnswers: number[]
   setPlayerName: (name: string) => void
   startQuiz: () => void
   answerQuestion: (answerIndex: number) => void
   setCurrentQuiz: (quiz: Quiz) => void
   saveResult: () => Promise<void>
+  resetQuiz: () => void
 }
-
-export const useQuizStore = create<QuizStore>((set, get) => ({
 // ... (conteúdo truncado)
     ```
 
@@ -1666,35 +1768,35 @@ export type CustomError = {
     
 ```typescript
 export type User = {
-    id: string
-    name: string
-    email: string
-  }
-  
-  export type Question = {
-    id?: string
-    text: string
-    options: string[]
-    correctAnswer: number
-    order: number
-  }
-  
-  export type Quiz = {
-    id: string
-    title: string
-    description: string
-    questions: Question[]
-    createdAt: Date
-    updatedAt: Date
-  }
-  
-  export type QuizResult = {
-    id: string
-    quizId: string
-    playerName: string
-    score: number
-    totalQuestions: number
-    createdAt: Date
+  id: string
+  name: string
+  email: string
+}
+
+export type Question = {
+  text: string
+  options: string[]
+  correctAnswer: number
+  order: number
+}
+
+export type Quiz = {
+  id: string
+  title: string
+  description: string
+  questions: Question[]
+  isPublished: boolean
+  userId: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type QuizResult = {
+  id: string
+  quizId: string
+  playerName: string
+  score: number
+  totalQuestions: number
 // ... (conteúdo truncado)
     ```
 
@@ -1814,9 +1916,6 @@ const config: Config = {
 
 ```javascript
 const { execSync } = require('child_process');
-
-console.log('Generating Prisma Client...');
-execSync('npx prisma generate', { stdio: 'inherit' });
 
 console.log('Building Next.js app...');
 execSync('next build', { stdio: 'inherit' });

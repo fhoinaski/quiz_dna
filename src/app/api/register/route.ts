@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { connectToDatabase } from "@/lib/mongodb";
+import { User } from "@/models";
 
 export async function POST(request: Request) {
   console.log("Requisição recebida em /api/register");
 
-  const prisma = (await import("@/lib/prisma-client")).default;
   try {
     // Tenta parsear o corpo da requisição com segurança
     let body;
@@ -24,37 +25,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
     }
 
+    // Conecta ao banco de dados
+    await connectToDatabase();
+
     // Verifica se o email já está em uso
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const existingUser = await User.findOne({ email });
+
     if (existingUser) {
       console.log("Email já em uso:", email);
-      return NextResponse.json({ error: "Email já está em uso" }, { status: 400 });
+      return NextResponse.json({ error: "Email já está em uso" }, { status: 409 });
     }
 
-    // Criptografa a senha
+    // Hash da senha
     const hashedPassword = await bcrypt.hash(password, 10);
-    console.log("Senha criptografada com sucesso para:", email);
 
-    // Cria o usuário
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-      },
+    // Cria o novo usuário
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
     });
-    console.log("Usuário criado com sucesso:", user.id);
 
-   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-   const { password: _, ...userWithoutPassword } = user;
+    // Retorna o usuário criado (sem a senha)
+    const newUser = {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+    };
 
-    // Retorna a resposta com status explícito
-    console.log("Retornando resposta ao cliente:", userWithoutPassword);
-    return NextResponse.json(userWithoutPassword, { status: 201 });
-  } catch (error: unknown) {
+    console.log("Usuário criado com sucesso:", newUser);
+    return NextResponse.json(newUser, { status: 201 });
+  } catch (error) {
     console.error("Erro ao registrar usuário:", error);
-    return NextResponse.json({ error: "Erro ao criar conta" }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }

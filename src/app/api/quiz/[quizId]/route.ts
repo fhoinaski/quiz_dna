@@ -1,17 +1,21 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-
-interface RouteContext {
-  params: Promise<{ quizId: string }>;
-}
+import { connectToDatabase } from "@/lib/mongodb";
+import { Quiz } from "@/models";
+import mongoose from "mongoose";
 
 // Helper function para validar o quizId
 const validateQuizId = async (quizId: string) => {
-  const prisma = (await import("@/lib/prisma-client")).default;
-  const quiz = await prisma.quiz.findUnique({
-    where: { id: quizId },
-  });
+  if (!mongoose.Types.ObjectId.isValid(quizId)) {
+    throw new Error("ID de quiz inválido");
+  }
+  
+  await connectToDatabase();
+  const quiz = await Quiz.findById(quizId);
+  if (!quiz) {
+    throw new Error("Quiz não encontrado");
+  }
   return quiz;
 };
 
@@ -24,103 +28,127 @@ const validateSession = async () => {
   return session;
 };
 
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(
+  request: Request, 
+  { params }: { params: { quizId: string } }
+) {
   try {
-    const { quizId } = await params;
+    // No Next.js 15, devemos acessar diretamente o parâmetro
+    const quizId = params.quizId;
+    
     const quiz = await validateQuizId(quizId);
 
-    if (!quiz) {
-      return NextResponse.json({ error: "Quiz não encontrado" }, { status: 404 });
+    // Para quizzes publicados, não exigimos autenticação
+    if (!quiz.isPublished) {
+      const session = await validateSession();
+      
+      // Se não for o dono do quiz e o quiz não estiver publicado, não permite acesso
+      if (session.user.id !== quiz.userId.toString()) {
+        return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+      }
     }
 
-    return NextResponse.json(quiz);
-  } catch (error) {
+    return NextResponse.json({
+      id: quiz._id.toString(),
+      title: quiz.title,
+      description: quiz.description,
+      questions: quiz.questions,
+      isPublished: quiz.isPublished,
+    });
+  } catch (error: any) {
     console.error("Erro ao buscar quiz:", error);
+    if (error.message === "Quiz não encontrado") {
+      return NextResponse.json({ error: "Quiz não encontrado" }, { status: 404 });
+    } else if (error.message === "Não autorizado") {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    } else if (error.message === "ID de quiz inválido") {
+      return NextResponse.json({ error: "ID de quiz inválido" }, { status: 400 });
+    }
     return NextResponse.json({ error: "Erro ao buscar quiz" }, { status: 500 });
   }
 }
 
-export async function DELETE(request: Request, { params }: RouteContext) {
-  const prisma = (await import("@/lib/prisma-client")).default;
+export async function PUT(
+  request: Request, 
+  { params }: { params: { quizId: string } }
+) {
   try {
-    const { quizId } = await params;
+    // No Next.js 15, devemos acessar diretamente o parâmetro
+    const quizId = params.quizId;
+    
+    // Validar sessão
     const session = await validateSession();
+    
+    // Validar quiz
     const quiz = await validateQuizId(quizId);
-
-    if (!quiz) {
-      return NextResponse.json(
-        { success: false, message: "Quiz não encontrado" },
-        { status: 404 }
-      );
+    
+    // Verificar se é o dono do quiz
+    if (session.user.id !== quiz.userId.toString()) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     }
-
-    if (quiz.userId !== session.user.id) {
-      return NextResponse.json(
-        { success: false, message: "Não autorizado" },
-        { status: 403 }
-      );
-    }
-
-    // Usando transação para garantir a integridade dos dados
-    await prisma.$transaction([
-      prisma.result.deleteMany({ where: { quizId } }),
-      prisma.quiz.delete({ where: { id: quizId } }),
-    ]);
-
-    return NextResponse.json({
-      success: true,
-      message: "Quiz excluído com sucesso",
-    });
-  } catch (error) {
-    if (error instanceof Error && error.message === "Não autorizado") {
-      return NextResponse.json(
-        { success: false, message: "Não autorizado" },
-        { status: 401 }
-      );
-    }
-
-    console.error("Erro ao excluir quiz:", error);
-    return NextResponse.json(
-      { success: false, message: "Erro ao excluir quiz" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PUT(request: Request, { params }: RouteContext) {
-  const prisma = (await import("@/lib/prisma-client")).default;
-  try {
-    const { quizId } = await params;
-    const session = await validateSession();
-    const quiz = await validateQuizId(quizId);
-
-    if (!quiz) {
-      return NextResponse.json({ error: "Quiz não encontrado" }, { status: 404 });
-    }
-
-    if (quiz.userId !== session.user.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
-    }
-
+    
     const body = await request.json();
-
-    const updatedQuiz = await prisma.quiz.update({
-      where: { id: quizId },
-      data: {
+    
+    // Atualizar quiz
+    const updatedQuiz = await Quiz.findByIdAndUpdate(
+      quizId,
+      {
         title: body.title,
         description: body.description,
         questions: body.questions,
-        isPublished: body.isPublished,
+        isPublished: body.isPublished
       },
+      { new: true }
+    );
+    
+    return NextResponse.json({
+      id: updatedQuiz?._id.toString(),
+      title: updatedQuiz?.title,
+      description: updatedQuiz?.description,
+      questions: updatedQuiz?.questions,
+      isPublished: updatedQuiz?.isPublished
     });
-
-    return NextResponse.json(updatedQuiz);
-  } catch (error) {
-    if (error instanceof Error && error.message === "Não autorizado") {
+  } catch (error: any) {
+    console.error("Erro ao atualizar quiz:", error);
+    if (error.message === "Quiz não encontrado") {
+      return NextResponse.json({ error: "Quiz não encontrado" }, { status: 404 });
+    } else if (error.message === "Não autorizado") {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
-
-    console.error("Erro ao atualizar quiz:", error);
     return NextResponse.json({ error: "Erro ao atualizar quiz" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: Request, 
+  { params }: { params: { quizId: string } }
+) {
+  try {
+    // No Next.js 15, devemos acessar diretamente o parâmetro
+    const quizId = params.quizId;
+    
+    // Validar sessão
+    const session = await validateSession();
+    
+    // Validar quiz
+    const quiz = await validateQuizId(quizId);
+    
+    // Verificar se é o dono do quiz
+    if (session.user.id !== quiz.userId.toString()) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    }
+    
+    // Excluir quiz
+    await Quiz.findByIdAndDelete(quizId);
+    
+    return NextResponse.json({ message: "Quiz excluído com sucesso" });
+  } catch (error: any) {
+    console.error("Erro ao excluir quiz:", error);
+    if (error.message === "Quiz não encontrado") {
+      return NextResponse.json({ error: "Quiz não encontrado" }, { status: 404 });
+    } else if (error.message === "Não autorizado") {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "Erro ao excluir quiz" }, { status: 500 });
   }
 }

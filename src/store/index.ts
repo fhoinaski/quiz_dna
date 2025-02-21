@@ -20,11 +20,13 @@ type QuizStore = {
   playerName: string
   currentQuestionIndex: number
   score: number
+  selectedAnswers: number[]
   setPlayerName: (name: string) => void
   startQuiz: () => void
   answerQuestion: (answerIndex: number) => void
   setCurrentQuiz: (quiz: Quiz) => void
   saveResult: () => Promise<void>
+  resetQuiz: () => void
 }
 
 export const useQuizStore = create<QuizStore>((set, get) => ({
@@ -33,62 +35,82 @@ export const useQuizStore = create<QuizStore>((set, get) => ({
   playerName: '',
   currentQuestionIndex: 0,
   score: 0,
-
-  setCurrentQuiz: (quiz) => set({ 
-    currentQuiz: quiz,
-    currentStep: 'welcome',
-    currentQuestionIndex: 0,
-    score: 0
-  }),
+  selectedAnswers: [],
   
   setPlayerName: (name) => set({ playerName: name }),
   
   startQuiz: () => set({ 
     currentStep: 'quiz',
     currentQuestionIndex: 0,
-    score: 0
+    score: 0,
+    selectedAnswers: []
   }),
   
-  answerQuestion: (answerIndex) => 
-    set((state) => {
-      if (!state.currentQuiz) return state
-
-      const isCorrect = state.currentQuiz.questions[state.currentQuestionIndex].correctAnswer === answerIndex
-      const newScore = isCorrect ? state.score + 1 : state.score
-      const nextIndex = state.currentQuestionIndex + 1
-      
-      if (nextIndex >= state.currentQuiz.questions.length) {
-        return {
-          currentStep: 'results',
-          score: newScore,
-        }
-      }
-      
-      return {
+  answerQuestion: (answerIndex) => {
+    const { currentQuiz, currentQuestionIndex, score, selectedAnswers } = get()
+    
+    if (!currentQuiz) return
+    
+    const isCorrect = answerIndex === currentQuiz.questions[currentQuestionIndex].correctAnswer
+    const newScore = isCorrect ? score + 1 : score
+    const newSelectedAnswers = [...selectedAnswers, answerIndex]
+    
+    const nextIndex = currentQuestionIndex + 1
+    
+    if (nextIndex >= currentQuiz.questions.length) {
+      set({ 
+        currentStep: 'results',
+        score: newScore,
+        selectedAnswers: newSelectedAnswers
+      })
+    } else {
+      set({ 
         currentQuestionIndex: nextIndex,
         score: newScore,
-      }
-    }),
-
+        selectedAnswers: newSelectedAnswers
+      })
+    }
+  },
+  
+  setCurrentQuiz: (quiz) => set({ currentQuiz: quiz }),
+  
   saveResult: async () => {
-    const state = get()
-    if (!state.currentQuiz) return
-
+    const { currentQuiz, playerName, score } = get()
+    
+    if (!currentQuiz) {
+      throw new Error('Nenhum quiz ativo')
+    }
+    
     try {
-      await fetch(`/api/quiz/${state.currentQuiz.id}/results`, {
+      const response = await fetch(`/api/quiz/${currentQuiz.id}/results`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          playerName: state.playerName,
-          score: state.score,
-          totalQuestions: state.currentQuiz.questions.length
+          playerName,
+          score,
+          totalQuestions: currentQuiz.questions.length,
+          timestamp: Date.now() // Adiciona timestamp para evitar duplicatas
         })
       })
+      
+      if (!response.ok) {
+        throw new Error('Falha ao salvar resultado')
+      }
+      
+      const data = await response.json()
+      return data
     } catch (error) {
       console.error('Erro ao salvar resultado:', error)
-      throw error // Propaga o erro para ser tratado no componente
+      throw error
     }
-  }
+  },
+  
+  resetQuiz: () => set({
+    currentStep: 'welcome',
+    currentQuestionIndex: 0,
+    score: 0,
+    selectedAnswers: []
+  })
 }))

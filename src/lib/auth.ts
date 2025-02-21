@@ -1,6 +1,8 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
+import { connectToDatabase } from "./mongodb";
+import { User } from "@/models";
 
 export const authOptions: NextAuthOptions = {
   // Provedores de autenticação
@@ -12,78 +14,64 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Senha", type: "password" },
       },
       async authorize(credentials) {
-        // Importação dinâmica do Prisma Client
-        const prisma = (await import("./prisma-client")).default;
+        // Verifica se as credenciais foram fornecidas
+        if (!credentials?.email || !credentials?.password) {
+          return null;
+        }
 
         try {
-          // Verifica se as credenciais foram fornecidas
-          if (!credentials?.email || !credentials?.password) {
-            return null;
-          }
+          // Conecta ao banco de dados
+          await connectToDatabase();
 
           // Busca o usuário no banco de dados
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email },
-          });
+          const user = await User.findOne({ email: credentials.email });
 
           // Se o usuário não existir, retorna null
           if (!user) {
             return null;
           }
 
-          // Compara a senha fornecida com a senha criptografada
-          const isPasswordValid = await compare(
-            credentials.password,
-            user.password
-          );
+          // Verifica se a senha está correta
+          const isPasswordValid = await compare(credentials.password, user.password);
 
           // Se a senha não for válida, retorna null
           if (!isPasswordValid) {
             return null;
           }
 
-          // Retorna os dados do usuário autenticado
+          // Retorna o usuário autenticado
           return {
-            id: user.id,
-            email: user.email,
+            id: user._id.toString(),
             name: user.name,
+            email: user.email,
           };
         } catch (error) {
-          console.error("Erro na autenticação:", error);
+          console.error("Erro durante autenticação:", error);
           return null;
         }
       },
     }),
   ],
-
-  // Configuração da sessão
-  session: {
-    strategy: "jwt", // Usa JWT para gerenciar sessões
-  },
-
-  // Chave secreta para assinar tokens
-  secret: process.env.NEXTAUTH_SECRET,
-
-  // Páginas personalizadas
-  pages: {
-    signIn: "/login", // Redireciona para a página de login personalizada
-  },
-
-  // Callbacks para personalizar o comportamento
   callbacks: {
-    // Adiciona o ID do usuário ao token JWT
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
       }
       return token;
     },
-    // Adiciona o ID do usuário à sessão
     async session({ session, token }) {
-      if (token && session.user) {
+      if (session.user) {
         session.user.id = token.id as string;
       }
       return session;
     },
   },
+  pages: {
+    signIn: "/login",
+    error: "/login",
+  },
+  session: {
+    strategy: "jwt",
+  },
+  secret: process.env.NEXTAUTH_SECRET,
 };

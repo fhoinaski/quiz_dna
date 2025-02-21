@@ -1,36 +1,107 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Migração de Prisma para Mongoose
 
-## Getting Started
+Este guia explica as mudanças feitas para migrar o projeto do Prisma para o Mongoose.
 
-First, run the development server:
+## Mudanças Principais
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+1. **Instalação do Mongoose**: Removemos o Prisma e instalamos o Mongoose como ORM para MongoDB.
+
+2. **Modelos de Dados**: Criamos modelos Mongoose equivalentes aos modelos Prisma anteriores:
+   - User
+   - Quiz
+   - QuizResult
+
+3. **Conexão com o Banco de Dados**: Implementamos um sistema de conexão persistente com o MongoDB.
+
+4. **APIs**: Atualizamos todas as APIs para usar o Mongoose em vez do Prisma.
+
+5. **Tipos**: Atualizamos as definições de tipos para refletir a estrutura do MongoDB.
+
+## Como configurar o projeto
+
+1. Crie um arquivo `.env` com base no `.env.example` fornecido e configure sua URI do MongoDB.
+
+2. Instale as dependências:
+   ```
+   npm install
+   ```
+
+3. Execute o projeto em desenvolvimento:
+   ```
+   npm run dev
+   ```
+
+## Estrutura do Banco de Dados
+
+A estrutura do banco de dados MongoDB segue este padrão:
+
+### Coleção: users
+```
+{
+  _id: ObjectId,
+  name: String,
+  email: String,
+  password: String,
+  createdAt: Date,
+  updatedAt: Date
+}
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Coleção: quizzes
+```
+{
+  _id: ObjectId,
+  title: String,
+  description: String,
+  questions: [
+    {
+      text: String,
+      options: [String],
+      correctAnswer: Number,
+      order: Number
+    }
+  ],
+  userId: ObjectId,
+  isPublished: Boolean,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Coleção: quizresults
+```
+{
+  _id: ObjectId,
+  quizId: ObjectId,
+  playerName: String,
+  score: Number,
+  totalQuestions: Number,
+  createdAt: Date
+}
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Notas Importantes
 
-## Learn More
+- Os IDs do MongoDB são do tipo ObjectId, mas nas APIs são convertidos para string para compatibilidade.
+- O sistema agora usa uma conexão persistente com o MongoDB em desenvolvimento para evitar múltiplas conexões.
+- Os arquivos relacionados ao Prisma foram removidos ou substituídos.
 
-To learn more about Next.js, take a look at the following resources:
+## Diferenças de Consulta
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Prisma (Antes):
+```typescript
+const user = await prisma.user.findUnique({
+  where: { email }
+});
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Mongoose (Agora):
+```typescript
+const user = await User.findOne({ email });
+```
 
-## Deploy on Vercel
+## Avisos para Desenvolvimento
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Ao fazer consultas que envolvem relacionamentos, você agora precisa usar o método `populate` do Mongoose ou consultas de agregação.
+- Os IDs no MongoDB precisam ser convertidos para ObjectId ao fazer consultas ou atualizações.
+- O Mongoose não gera automaticamente tipos como o Prisma, então é importante manter os tipos atualizados manualmente.

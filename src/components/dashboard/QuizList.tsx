@@ -14,219 +14,181 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-
-type Quiz = {
-  id: string
-  title: string
-  description: string
-  _count?: {
-    results: number
-  }
-  createdAt: string
-  isPublished: boolean
-}
+import type { QuizWithResultCount } from "@/types"
 
 export function QuizList() {
-  const [quizzes, setQuizzes] = useState<Quiz[]>([])
+  const [quizzes, setQuizzes] = useState<QuizWithResultCount[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [quizToDelete, setQuizToDelete] = useState<string | null>(null)
-
-  const fetchQuizzes = async () => {
-    try {
-      const response = await fetch('/api/quiz')
-      if (!response.ok) throw new Error('Erro ao carregar quizzes')
-      const data = await response.json()
-      setQuizzes(data)
-      setError('')
-    } catch (error) {
-      console.error('Erro ao carregar quizzes:', error)
-      setError('Erro ao carregar quizzes')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   useEffect(() => {
     fetchQuizzes()
   }, [])
 
-  const handleDeleteClick = (quizId: string) => {
-    setQuizToDelete(quizId)
-    setIsDeleteModalOpen(true)
+  const fetchQuizzes = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/quiz')
+      
+      if (!response.ok) {
+        throw new Error('Falha ao carregar quizzes')
+      }
+      
+      const data = await response.json()
+      setQuizzes(data)
+    } catch (error) {
+      console.error('Erro ao carregar quizzes:', error)
+      setError('Não foi possível carregar seus quizzes. Tente novamente mais tarde.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteClick = (quizId: string) => {
+    setQuizToDelete(quizId)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
     if (!quizToDelete) return
-  
+
     try {
       const response = await fetch(`/api/quiz/${quizToDelete}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       })
-  
-      const data = await response.json()
-  
-      if (data.success) {
-        setQuizzes(current => current.filter(quiz => quiz.id !== quizToDelete))
-      } else {
-        throw new Error(data.message || 'Erro ao excluir quiz')
+
+      if (!response.ok) {
+        throw new Error('Falha ao excluir quiz')
       }
+
+      // Remove o quiz da lista
+      setQuizzes(prev => prev.filter(quiz => quiz.id !== quizToDelete))
     } catch (error) {
-      setError(
-        error instanceof Error 
-          ? error.message 
-          : 'Erro ao excluir quiz'
-      )
-      fetchQuizzes()
+      console.error('Erro ao excluir quiz:', error)
+      setError('Não foi possível excluir o quiz. Tente novamente mais tarde.')
     } finally {
-      setIsDeleteModalOpen(false)
+      setIsDeleteDialogOpen(false)
       setQuizToDelete(null)
     }
   }
 
-  const handleDeleteCancel = () => {
-    setIsDeleteModalOpen(false)
-    setQuizToDelete(null)
-  }
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      <div className="flex justify-center items-center h-40">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="text-center py-4">
-        <p className="text-red-600 mb-4">{error}</p>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+      <div className="text-center p-6 bg-red-50 rounded-lg">
+        <p className="text-red-600">{error}</p>
+        <button 
           onClick={fetchQuizzes}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+          className="mt-2 text-blue-600 hover:underline"
         >
           Tentar novamente
-        </motion.button>
+        </button>
       </div>
     )
   }
 
   if (quizzes.length === 0) {
     return (
-      <div className="text-center py-12">
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
-          Nenhum quiz encontrado
-        </h3>
-        <p className="text-gray-500 mb-6">
-          Comece criando seu primeiro quiz
+      <div className="text-center p-6 bg-blue-50 rounded-lg">
+        <p className="text-gray-600">Você ainda não tem nenhum quiz.</p>
+        <p className="mt-2">
+          <Link href="/dashboard/quiz/create" className="text-blue-600 hover:underline">
+            Crie seu primeiro quiz agora
+          </Link>
         </p>
-        {/* <Link href="/dashboard/quiz/create">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg"
-          >
-            Criar Quiz
-          </motion.button>
-        </Link> */}
       </div>
     )
   }
 
   return (
     <>
-      <div className="grid gap-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {quizzes.map((quiz) => (
           <motion.div
             key={quiz.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-lg shadow p-6"
+            className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200"
           >
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                  {quiz.title}
-                </h3>
-                <p className="text-gray-600 mb-4">{quiz.description}</p>
-                <div className="flex gap-4 text-sm text-gray-500">
-                  <span>{quiz._count?.results || 0} participações</span>
-                  <span>•</span>
-                  <span>Criado em {new Date(quiz.createdAt).toLocaleDateString()}</span>
-                  <span>•</span>
-                  <span className={quiz.isPublished ? 'text-green-600' : 'text-yellow-600'}>
-                    {quiz.isPublished ? 'Publicado' : 'Rascunho'}
+            <div className="p-4">
+              <h3 className="font-semibold text-lg mb-1 truncate">{quiz.title}</h3>
+              <p className="text-gray-600 text-sm mb-3 line-clamp-2">{quiz.description}</p>
+              
+              <div className="flex justify-between items-center">
+                <div className="text-sm text-gray-500">
+                  <span className={`px-2 py-1 rounded-full text-xs ${
+                    quiz.isPublished ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                  }`}>
+                    {quiz.isPublished ? "Publicado" : "Rascunho"}
                   </span>
                 </div>
+                
+                <span className="text-sm text-gray-500 flex items-center">
+                  <BarChart2 className="w-4 h-4 mr-1" />
+                  {quiz._count.results} respostas
+                </span>
               </div>
-
-              <div className="flex gap-2">
-                <Link href={`/quiz/${quiz.id}`} target="_blank">
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-                    title="Visualizar Quiz"
-                  >
-                    <Eye className="h-5 w-5" />
-                  </motion.button>
-                </Link>
-
+            </div>
+            
+            <div className="border-t border-gray-200 px-4 py-3 bg-gray-50 flex justify-between">
+              <div className="space-x-2">
                 <Link href={`/dashboard/quiz/${quiz.id}/edit`}>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg"
-                    title="Editar Quiz"
-                  >
-                    <Edit className="h-5 w-5" />
-                  </motion.button>
+                  <button className="p-1 text-gray-600 hover:text-blue-600">
+                    <Edit className="w-4 h-4" />
+                  </button>
                 </Link>
-
+                
                 <Link href={`/dashboard/results?quizId=${quiz.id}`}>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-                    title="Ver Resultados"
-                  >
-                    <BarChart2 className="h-5 w-5" />
-                  </motion.button>
+                  <button className="p-1 text-gray-600 hover:text-blue-600">
+                    <BarChart2 className="w-4 h-4" />
+                  </button>
                 </Link>
-
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                
+                <button 
                   onClick={() => handleDeleteClick(quiz.id)}
-                  className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                  title="Excluir Quiz"
+                  className="p-1 text-gray-600 hover:text-red-600"
                 >
-                  <Trash2 className="h-5 w-5" />
-                </motion.button>
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
+              
+              <Link 
+                href={`/quiz/${quiz.id}`} 
+                target="_blank"
+                className={`flex items-center space-x-1 text-sm ${
+                  quiz.isPublished ? "text-blue-600 hover:text-blue-800" : "text-gray-400 cursor-not-allowed"
+                }`}
+                onClick={(e) => !quiz.isPublished && e.preventDefault()}
+              >
+                <Eye className="w-4 h-4" />
+                <span>Visualizar</span>
+              </Link>
             </div>
           </motion.div>
         ))}
       </div>
 
-      <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Quiz</AlertDialogTitle>
+            <AlertDialogTitle>Deseja excluir este quiz?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir este quiz? Esta ação não pode ser desfeita.
+              Esta ação não pode ser desfeita. Todos os dados relacionados a este quiz serão permanentemente removidos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleDeleteCancel}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteConfirm}
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-            >
-              Excluir
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+              Sim, excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

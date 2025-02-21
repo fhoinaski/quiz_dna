@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { connectToDatabase } from "@/lib/mongodb";
+import { Quiz } from "@/models";
+import mongoose from "mongoose";
 
 // POST - Criar novo quiz
 export async function POST(request: Request) {
-  const prisma = (await import("@/lib/prisma-client")).default;
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -13,47 +15,68 @@ export async function POST(request: Request) {
 
     const body = await request.json();
 
-    const quiz = await prisma.quiz.create({
-      data: {
-        title: body.title,
-        description: body.description,
-        questions: body.questions,
-        userId: session.user.id,
-        isPublished: body.isPublished || false,
-      },
+    // Conecta ao banco de dados
+    await connectToDatabase();
+
+    const quiz = await Quiz.create({
+      title: body.title,
+      description: body.description,
+      questions: body.questions,
+      userId: new mongoose.Types.ObjectId(session.user.id),
+      isPublished: body.isPublished || false,
     });
 
-    return NextResponse.json(quiz);
+    return NextResponse.json({
+      id: quiz._id.toString(),
+      title: quiz.title,
+      description: quiz.description,
+      questions: quiz.questions,
+      isPublished: quiz.isPublished,
+      createdAt: quiz.createdAt,
+      updatedAt: quiz.updatedAt
+    });
   } catch (error) {
     console.error("Erro ao criar quiz:", error);
     return NextResponse.json({ error: "Erro ao criar quiz" }, { status: 500 });
   }
 }
 
-// GET - Listar quizzes
-export async function GET() {
-  const prisma = (await import("@/lib/prisma-client")).default;
+// GET - Listar quizzes do usuário
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    const quizzes = await prisma.quiz.findMany({
-      where: {
-        userId: session.user.id,
+    // Conecta ao banco de dados
+    await connectToDatabase();
+
+    // Busca os quizzes do usuário com contagem de resultados
+    const quizzes = await Quiz.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(session.user.id) } },
+      {
+        $lookup: {
+          from: "quizresults",
+          localField: "_id",
+          foreignField: "quizId",
+          as: "results"
+        }
       },
-      include: {
-        _count: {
-          select: {
-            results: true,
-          },
-        },
+      {
+        $project: {
+          id: { $toString: "$_id" },
+          title: 1,
+          description: 1,
+          isPublished: 1,
+          createdAt: 1,
+          _count: {
+            results: { $size: "$results" }
+          }
+        }
       },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+      { $sort: { createdAt: -1 } }
+    ]);
 
     return NextResponse.json(quizzes);
   } catch (error) {
