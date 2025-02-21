@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Dna } from 'lucide-react'
 import { useEffect, useRef } from 'react'
@@ -11,12 +10,13 @@ import gsap from 'gsap'
 export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
   const particlesRef = useRef<HTMLDivElement>(null)
+  const [redirectCount, setRedirectCount] = useState(0)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
     
+    // Configuração das partículas
     if (particlesRef.current) {
       const particles = Array.from({ length: 50 }).map(() => {
         const particle = document.createElement('div')
@@ -66,10 +66,24 @@ export default function LoginPage() {
         setErrorMessage('Email ou senha inválidos')
         setLoading(false)
       } else {
-        console.log('Login bem-sucedido, redirecionando...')
-        // Força redirecionamento programático
-        router.push('/dashboard')
-        router.refresh()
+        console.log('Login bem-sucedido, redirecionando...', result)
+        setRedirectCount(prev => prev + 1)
+        
+        // Armazena um flag na localStorage que indicará que o usuário está logado
+        localStorage.setItem('isAuthenticated', 'true')
+        localStorage.setItem('redirectAttempt', Date.now().toString())
+        
+        // Primeira tentativa com delay pequeno
+        setTimeout(() => {
+          console.log("Tentativa de redirecionamento 1")
+          window.location.href = `${window.location.origin}/dashboard`
+        }, 500)
+        
+        // Segunda tentativa com delay maior
+        setTimeout(() => {
+          console.log("Tentativa de redirecionamento 2")
+          window.location.replace(`${window.location.origin}/dashboard`)
+        }, 2000)
       }
     } catch (error) {
       console.error('Erro ao processar login:', error)
@@ -96,6 +110,18 @@ export default function LoginPage() {
           <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
             DNA Vital Quiz
           </h2>
+          
+          {redirectCount > 0 && (
+            <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 rounded">
+              Redirecionando para o dashboard... ({redirectCount})
+              <button 
+                onClick={() => window.location.href = '/dashboard'} 
+                className="ml-2 text-blue-600 underline"
+              >
+                Clique aqui se não for redirecionado
+              </button>
+            </div>
+          )}
           
           {errorMessage && (
             <motion.div
@@ -136,10 +162,10 @@ export default function LoginPage() {
             
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || redirectCount > 0}
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-70"
             >
-              {loading ? 'Entrando...' : 'Entrar'}
+              {loading ? 'Entrando...' : redirectCount > 0 ? 'Redirecionando...' : 'Entrar'}
             </button>
           </form>
           

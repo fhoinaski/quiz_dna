@@ -3,34 +3,38 @@ import { getToken } from 'next-auth/jwt'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  const token = await getToken({ 
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET,
-  })
+  // Log para diagnóstico
+  console.log('Middleware executado para:', request.nextUrl.pathname)
+  
+  // Tenta obter o token
+  let token: any
+  try {
+    token = await getToken({ 
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    })
+    console.log('Token encontrado:', !!token)
+  } catch (error) {
+    console.error('Erro ao tentar verificar token:', error)
+  }
   
   // URLs completos para redirecionamento
   const loginUrl = new URL('/login', request.url)
   const dashboardUrl = new URL('/dashboard', request.url)
   
-  // Adiciona debug para ver o que está acontecendo
-  console.log('Middleware executado:', {
-    pathname: request.nextUrl.pathname,
-    isAuthenticated: !!token,
-  })
-  
-  // Rotas do dashboard são protegidas
+  // Verificações para rotas específicas
   if (request.nextUrl.pathname.startsWith('/dashboard')) {
     if (!token) {
       console.log('Não autenticado, redirecionando para login')
       return NextResponse.redirect(loginUrl)
     }
-    console.log('Autenticado, permitindo acesso ao dashboard')
+    console.log('Autenticado para dashboard, permitindo acesso')
     return NextResponse.next()
   }
   
-  // Usuários autenticados são redirecionados para o dashboard nas páginas de autenticação
+  // Redirecionamento para usuários autenticados em páginas de autenticação
   if ((request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register') && token) {
-    console.log('Já autenticado, redirecionando para dashboard')
+    console.log('Autenticado em página de login/registro, redirecionando para dashboard')
     return NextResponse.redirect(dashboardUrl)
   }
   
