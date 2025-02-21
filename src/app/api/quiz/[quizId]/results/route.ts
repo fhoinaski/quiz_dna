@@ -94,7 +94,7 @@ export async function GET(
     const params = await context.params;
     const { quizId } = params;
 
-    console.log('Buscando quiz:', quizId);
+  
 
     const quiz = await getQuizById(quizId);
     if (!quiz) {

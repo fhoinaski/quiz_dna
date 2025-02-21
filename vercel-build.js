@@ -1,4 +1,7 @@
 const { execSync } = require('child_process');
 
-execSync('prisma generate', { stdio: 'inherit' });
-execSync('prisma db push', { stdio: 'inherit' });
+console.log('Generating Prisma Client...');
+execSync('npx prisma generate', { stdio: 'inherit' });
+
+console.log('Building Next.js app...');
+execSync('next build', { stdio: 'inherit' });

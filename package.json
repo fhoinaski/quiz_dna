@@ -2,12 +2,13 @@
   "name": "dna-vital-quiz-next",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-  "dev": "next dev",
-  "build": "prisma generate && next build",
-  "postinstall": "prisma generate",
-  "start": "next start"
-},
+ "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "vercel-build": "node vercel-build.js"
+  },
   "prisma": {
     "schema": "prisma/schema.prisma"
   },

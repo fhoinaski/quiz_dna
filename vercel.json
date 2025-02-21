@@ -1,7 +1,11 @@
 {
-  "functions": {
-    "src/app/api/**/*": {
-      "memory": 1024
+  "builds": [
+    {
+      "src": "./src/app/**/*",
+      "use": "@vercel/next"
     }
+  ],
+  "cache": {
+    "disable": true
   }
 }
