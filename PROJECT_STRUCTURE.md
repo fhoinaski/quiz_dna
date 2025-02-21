@@ -1,6 +1,6 @@
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 22:48:04  
+**Gerado em:** 20/02/2025, 23:48:33  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -149,12 +149,12 @@ exports.handler = async function(event, context) {
   "version": "0.1.0",
   "private": true,
  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "vercel-build": "node vercel-build.js"
-  },
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "lint": "next lint",
+  "vercel-build": "node vercel-build.js"
+},
   "prisma": {
     "schema": "prisma/schema.prisma"
   },
@@ -185,7 +185,7 @@ exports.handler = async function(event, context) {
 ```md
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 21:41:29  
+**Gerado em:** 20/02/2025, 22:48:04  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -354,36 +354,36 @@ export { handler as GET, handler as POST }
         - 📄 route.ts
         
 ```typescript
-// app/api/quiz/route.ts
-import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
-import prisma  from "@/lib/prisma-client"
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 // POST - Criar novo quiz
 export async function POST(request: Request) {
+  const prisma = (await import("@/lib/prisma-client")).default;
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Não autorizado" },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    const body = await request.json()
-    
+    const body = await request.json();
+
     const quiz = await prisma.quiz.create({
       data: {
         title: body.title,
         description: body.description,
         questions: body.questions,
         userId: session.user.id,
-        isPublished: body.isPublished || false
-      }
-    })
+        isPublished: body.isPublished || false,
+      },
+    });
 
-    return NextResponse.json(quiz)
+    return NextResponse.json(quiz);
+  } catch (error) {
+    console.error("Erro ao criar quiz:", error);
+    return NextResponse.json({ error: "Erro ao criar quiz" }, { status: 500 });
+  }
 // ... (conteúdo truncado)
         ```
 
@@ -393,71 +393,71 @@ export async function POST(request: Request) {
             
 ```typescript
 import { NextResponse } from "next/server";
-import prisma  from "@/lib/prisma-client"
-
-// Tipos
-interface ResultRequestBody {
-  playerName: string;
-  score: number;
-  totalQuestions: number;
-}
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 interface RouteContext {
   params: Promise<{ quizId: string }>;
 }
 
-// Funções auxiliares
-async function getQuizById(quizId: string) {
-  try {
-    return await prisma.quiz.findUnique({
-      where: { id: quizId }
-    });
-  } catch (error) {
-    console.error('Erro ao buscar quiz:', error);
-    return null;
-  }
-}
+// Helper function para validar o quizId
+const validateQuizId = async (quizId: string) => {
+  const prisma = (await import("@/lib/prisma-client")).default;
+  const quiz = await prisma.quiz.findUnique({
+    where: { id: quizId },
+  });
+  return quiz;
+};
 
-async function getTopResults(quizId: string) {
+// Helper function para validar a sessão
+const validateSession = async () => {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    throw new Error("Não autorizado");
+  }
+  return session;
+};
+
+export async function GET(request: Request, { params }: RouteContext) {
   try {
-    // Primeiro, pegamos os melhores resultados por jogador
-    const results = await prisma.result.findMany({
+    const { quizId } = await params;
+    const quiz = await validateQuizId(quizId);
 // ... (conteúdo truncado)
             ```
 
           - 📄 route.ts
           
 ```typescript
-import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
-import prisma  from "@/lib/prisma-client"
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 interface RouteContext {
-  params: Promise<{ quizId: string }>
+  params: Promise<{ quizId: string }>;
 }
 
 // Helper function para validar o quizId
 const validateQuizId = async (quizId: string) => {
+  const prisma = (await import("@/lib/prisma-client")).default;
   const quiz = await prisma.quiz.findUnique({
-    where: { id: quizId }
-  })
-  return quiz
-}
+    where: { id: quizId },
+  });
+  return quiz;
+};
 
 // Helper function para validar a sessão
 const validateSession = async () => {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    throw new Error("Não autorizado")
+    throw new Error("Não autorizado");
   }
-  return session
-}
+  return session;
+};
 
-export async function GET(
-  request: Request,
-  { params }: RouteContext
-) {
+export async function GET(request: Request, { params }: RouteContext) {
+  try {
+    const { quizId } = await params;
+    const quiz = await validateQuizId(quizId);
 // ... (conteúdo truncado)
           ```
 
@@ -465,36 +465,36 @@ export async function GET(
         - 📄 route.ts
         
 ```typescript
-import { NextResponse } from 'next/server'
-import  prisma  from '@/lib/prisma-client'
-import bcrypt from 'bcryptjs'
+import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 
 export async function POST(request: Request) {
-    try {
-        const body = await request.json()
-        const { name, email, password } = body
+  const prisma = (await import("@/lib/prisma-client")).default;
+  try {
+    const body = await request.json();
+    const { name, email, password } = body;
 
-        if (!name || !email || !password) {
-            return NextResponse.json(
-                { error: 'Dados incompletos' },
-                { status: 400 }
-            )
-        }
+    if (!name || !email || !password) {
+      return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
+    }
 
-        // Verifica se o email já está em uso
-        const existingUser = await prisma.user.findUnique({
-            where: { email }
-        })
+    // Verifica se o email já está em uso
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
 
-        if (existingUser) {
-            return NextResponse.json(
-                { error: 'Email já está em uso' },
-                { status: 400 }
-            )
-        }
+    if (existingUser) {
+      return NextResponse.json({ error: "Email já está em uso" }, { status: 400 });
+    }
 
-        // Criptografa a senha
-        const hashedPassword = await bcrypt.hash(password, 10)
+    // Criptografa a senha
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Cria o usuário
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
 // ... (conteúdo truncado)
         ```
 
@@ -763,42 +763,6 @@ export default function Home() {
     ```
 
     - 📁 quiz/
-      - 📄 route.ts
-      
-```typescript
-import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
-import prisma  from "@/lib/prisma-client"
-
-// POST - Criar novo quiz
-export async function POST(request: Request) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Não autorizado" },
-        { status: 401 }
-      )
-    }
-
-    const body = await request.json()
-    
-    const quiz = await prisma.quiz.create({
-      data: {
-        title: body.title,
-        description: body.description,
-        questions: body.questions,
-        userId: session.user.id,
-        isPublished: body.isPublished || false
-      }
-    })
-
-    return NextResponse.json(quiz)
-  } catch (error) {
-// ... (conteúdo truncado)
-      ```
-
       - 📁 [quizId]/
         - 📄 page.tsx
         
@@ -1862,14 +1826,10 @@ execSync('next build', { stdio: 'inherit' });
 
 ```json
 {
-  "builds": [
-    {
-      "src": "./src/app/**/*",
-      "use": "@vercel/next"
+  "functions": {
+    "src/app/api/**/*": {
+      "memory": 1024
     }
-  ],
-  "cache": {
-    "disable": true
   }
 }
 ```
