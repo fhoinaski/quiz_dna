@@ -42,3 +42,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Erro ao criar conta" }, { status: 500 });
   }
 }
+//corrige o erro de sintaxe
