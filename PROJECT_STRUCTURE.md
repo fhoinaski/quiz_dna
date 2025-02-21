@@ -1,6 +1,6 @@
 # Estrutura do Projeto
 
-**Gerado em:** 21/02/2025, 00:36:19  
+**Gerado em:** 21/02/2025, 00:56:05  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -162,7 +162,7 @@ export {};
 ```md
 # Estrutura do Projeto
 
-**Gerado em:** 21/02/2025, 00:02:09  
+**Gerado em:** 21/02/2025, 00:36:19  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -370,24 +370,10 @@ export async function POST(request: Request) {
               - 📄 route.ts
               
 ```typescript
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { Quiz, QuizResult } from "@/models";
 import mongoose from "mongoose";
-
-interface RouteContext {
-  params: { quizId: string };
-}
-
-// Definindo uma interface que corresponda aos resultados que vamos receber
-interface QuizResultDocument {
-  _id: mongoose.Types.ObjectId | string;
-  quizId: mongoose.Types.ObjectId | string;
-  playerName: string;
-  score: number;
-  totalQuestions: number;
-  createdAt: Date;
-}
 
 // Helper function para validar o quizId
 const validateQuizId = async (quizId: string) => {
@@ -400,58 +386,32 @@ const validateQuizId = async (quizId: string) => {
   if (!quiz) {
     throw new Error("Quiz não encontrado");
   }
+  
+  if (!quiz.isPublished) {
+    throw new Error("Quiz não está publicado");
+  }
+  
+  return quiz;
+};
+
+// Usando a sintaxe específica do Next.js 15 para Segment Config
+export const GET = async (
+  req: NextRequest,
+  { params }: { params: { quizId: string } }
+) => {
+  try {
 // ... (conteúdo truncado)
               ```
 
             - 📄 route.ts
             
 ```typescript
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
 import { Quiz, QuizResult } from "@/models";
 import mongoose from "mongoose";
-
-interface RouteContext {
-  params: { quizId: string };
-}
-
-// Type genérico para resultados do lean()
-type MongooseLeanDocument = {
-  _id: any;
-  [key: string]: any;
-};
-
-// Helper function para validar o quizId
-const validateQuizId = async (quizId: string) => {
-  if (!mongoose.Types.ObjectId.isValid(quizId)) {
-    throw new Error("ID de quiz inválido");
-  }
-  
-  await connectToDatabase();
-  const quiz = await Quiz.findById(quizId);
-  if (!quiz) {
-    throw new Error("Quiz não encontrado");
-  }
-  return quiz;
-};
-// ... (conteúdo truncado)
-            ```
-
-          - 📄 route.ts
-          
-```typescript
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { connectToDatabase } from "@/lib/mongodb";
-import { Quiz } from "@/models";
-import mongoose from "mongoose";
-
-interface RouteContext {
-  params: { quizId: string }; // Tipagem correta: não é uma Promise
-}
 
 // Helper function para validar o quizId
 const validateQuizId = async (quizId: string) => {
@@ -472,6 +432,46 @@ const validateSession = async () => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     throw new Error("Não autorizado");
+  }
+  return session;
+};
+
+// ... (conteúdo truncado)
+            ```
+
+          - 📄 route.ts
+          
+```typescript
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { connectToDatabase } from "@/lib/mongodb";
+import { Quiz } from "@/models";
+import mongoose from "mongoose";
+
+// Helper function para validar o quizId
+const validateQuizId = async (quizId: string) => {
+  if (!mongoose.Types.ObjectId.isValid(quizId)) {
+    throw new Error("ID de quiz inválido");
+  }
+  
+  await connectToDatabase();
+  const quiz = await Quiz.findById(quizId);
+  if (!quiz) {
+    throw new Error("Quiz não encontrado");
+  }
+  return quiz;
+};
+
+// Helper function para validar a sessão
+const validateSession = async () => {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    throw new Error("Não autorizado");
+  }
+  return session;
+};
+
 // ... (conteúdo truncado)
           ```
 
@@ -1118,7 +1118,7 @@ export function QuizScreen() {
 ```tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Trophy, BarChart2 } from 'lucide-react'
@@ -1128,24 +1128,24 @@ import { Particles } from '@/components/ui/Particles'
 export function ResultsScreen() {
   const { score, playerName, currentQuiz } = useQuizStore()
   const [hasBeenSaved, setHasBeenSaved] = useState(false)
-
+  
+  // Usando ref para controlar se o salvamento já foi iniciado
+  const saveInitiatedRef = useRef(false)
+  
   useEffect(() => {
     let isMounted = true
-
+    
     const saveResult = async () => {
-      if (!currentQuiz || hasBeenSaved) return
-
+      // Verificações para evitar múltiplos salvamentos
+      if (!currentQuiz || hasBeenSaved || saveInitiatedRef.current) return
+      
+      // Marcar que o salvamento foi iniciado antes da requisição
+      saveInitiatedRef.current = true
+      
       try {
-        const response = await fetch(`/api/quiz/${currentQuiz.id}/results`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            playerName,
-            score,
-            totalQuestions: currentQuiz.questions.length,
-            timestamp: Date.now() // Adiciona timestamp para evitar duplicatas
+        // Configurar estado como salvo primeiro para evitar múltiplas tentativas
+        if (isMounted) setHasBeenSaved(true)
+        
 // ... (conteúdo truncado)
       ```
 

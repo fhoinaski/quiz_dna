@@ -28,10 +28,10 @@ const validateSession = async () => {
   return session;
 };
 
-export const GET = async (
-  req: NextRequest,
+export async function GET(
+  request: NextRequest,
   { params }: { params: { quizId: string } }
-) => {
+) {
   try {
     // Acessa o parâmetro de forma segura
     const id = params.quizId;
@@ -82,12 +82,12 @@ export const GET = async (
     }
     return NextResponse.json({ error: "Erro ao buscar resultados" }, { status: 500 });
   }
-};
+}
 
-export const POST = async (
-  req: NextRequest,
+export async function POST(
+  request: NextRequest,
   { params }: { params: { quizId: string } }
-) => {
+) {
   try {
     // Acessa o parâmetro de forma segura
     const id = params.quizId;
@@ -99,7 +99,7 @@ export const POST = async (
       return NextResponse.json({ error: "Quiz não está publicado" }, { status: 403 });
     }
     
-    const body = await req.json();
+    const body = await request.json();
     
     // Validar os dados recebidos
     if (!body.playerName || typeof body.score !== 'number' || typeof body.totalQuestions !== 'number') {
@@ -148,4 +148,4 @@ export const POST = async (
     }
     return NextResponse.json({ error: "Erro ao salvar resultado" }, { status: 500 });
   }
-};
+}

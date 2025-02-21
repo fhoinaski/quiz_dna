@@ -28,10 +28,10 @@ const validateSession = async () => {
   return session;
 };
 
-export const GET = async (
-  req: NextRequest,
+export async function GET(
+  request: NextRequest,
   { params }: { params: { quizId: string } }
-) => {
+) {
   try {
     // Acessa o parâmetro de forma segura
     const id = params.quizId;
@@ -66,12 +66,12 @@ export const GET = async (
     }
     return NextResponse.json({ error: "Erro ao buscar quiz" }, { status: 500 });
   }
-};
+}
 
-export const PUT = async (
-  req: NextRequest,
+export async function PUT(
+  request: NextRequest,
   { params }: { params: { quizId: string } }
-) => {
+) {
   try {
     // Acessa o parâmetro de forma segura
     const id = params.quizId;
@@ -87,7 +87,7 @@ export const PUT = async (
       return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     }
     
-    const body = await req.json();
+    const body = await request.json();
     
     // Atualizar quiz
     const updatedQuiz = await Quiz.findByIdAndUpdate(
@@ -117,12 +117,12 @@ export const PUT = async (
     }
     return NextResponse.json({ error: "Erro ao atualizar quiz" }, { status: 500 });
   }
-};
+}
 
-export const DELETE = async (
-  req: NextRequest,
+export async function DELETE(
+  request: NextRequest,
   { params }: { params: { quizId: string } }
-) => {
+) {
   try {
     // Acessa o parâmetro de forma segura
     const id = params.quizId;
@@ -151,4 +151,4 @@ export const DELETE = async (
     }
     return NextResponse.json({ error: "Erro ao excluir quiz" }, { status: 500 });
   }
-};
+}

@@ -22,11 +22,11 @@ const validateQuizId = async (quizId: string) => {
   return quiz;
 };
 
-// Usando a sintaxe específica do Next.js 15 para Segment Config
-export const GET = async (
+// Usando a sintaxe correta do Next.js 15 para route handlers
+export async function GET(
   req: NextRequest,
   { params }: { params: { quizId: string } }
-) => {
+) {
   try {
     // Acessa o parâmetro do objeto params
     const id = params.quizId;
@@ -80,4 +80,4 @@ export const GET = async (
     }
     return NextResponse.json({ error: "Erro ao buscar resultados" }, { status: 500 });
   }
-};
+}
