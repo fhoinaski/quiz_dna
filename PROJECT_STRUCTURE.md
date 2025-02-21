@@ -1,6 +1,6 @@
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 21:31:07  
+**Gerado em:** 20/02/2025, 21:41:29  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -97,6 +97,9 @@ function buildMarkdown(structure, depth = 0) {
 declare global {
     var prisma: import('@prisma/client').PrismaClient | undefined;
   }
+  
+  // Isso é necessário para que o TypeScript trate este arquivo como um módulo
+  export {};
 ```
 
 - 📁 netlify/
@@ -182,7 +185,7 @@ exports.handler = async function(event, context) {
 ```md
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 21:19:36  
+**Gerado em:** 20/02/2025, 21:31:07  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -463,7 +466,7 @@ export async function GET(
         
 ```typescript
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma-client'
+import  prisma  from '@/lib/prisma-client'
 import bcrypt from 'bcryptjs'
 
 export async function POST(request: Request) {
@@ -1573,22 +1576,12 @@ main()
 ```typescript
 import { PrismaClient } from '@prisma/client';
 
-declare global {
-  var prisma: PrismaClient | undefined;
-}
-
-const prisma =
-  global.prisma ||
-  new PrismaClient({
-    log:
-      process.env.NODE_ENV === 'development'
-        ? ['query', 'error', 'warn']
-        : ['error'],
-  });
-
-if (process.env.NODE_ENV !== 'production') {
-  global.prisma = prisma;
-}
+// Criação simples de uma única instância do Prisma
+const prisma = new PrismaClient({
+  log: process.env.NODE_ENV === 'development' 
+    ? ['query', 'error', 'warn'] 
+    : ['error'],
+});
 
 export default prisma;
     ```
