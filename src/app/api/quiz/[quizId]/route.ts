@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
@@ -28,15 +28,15 @@ const validateSession = async () => {
   return session;
 };
 
-export async function GET(
-  request: Request, 
+export const GET = async (
+  req: NextRequest,
   { params }: { params: { quizId: string } }
-) {
+) => {
   try {
-    // No Next.js 15, devemos acessar diretamente o parâmetro
-    const quizId = params.quizId;
+    // Acessa o parâmetro de forma segura
+    const id = params.quizId;
     
-    const quiz = await validateQuizId(quizId);
+    const quiz = await validateQuizId(id);
 
     // Para quizzes publicados, não exigimos autenticação
     if (!quiz.isPublished) {
@@ -66,32 +66,32 @@ export async function GET(
     }
     return NextResponse.json({ error: "Erro ao buscar quiz" }, { status: 500 });
   }
-}
+};
 
-export async function PUT(
-  request: Request, 
+export const PUT = async (
+  req: NextRequest,
   { params }: { params: { quizId: string } }
-) {
+) => {
   try {
-    // No Next.js 15, devemos acessar diretamente o parâmetro
-    const quizId = params.quizId;
+    // Acessa o parâmetro de forma segura
+    const id = params.quizId;
     
     // Validar sessão
     const session = await validateSession();
     
     // Validar quiz
-    const quiz = await validateQuizId(quizId);
+    const quiz = await validateQuizId(id);
     
     // Verificar se é o dono do quiz
     if (session.user.id !== quiz.userId.toString()) {
       return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     }
     
-    const body = await request.json();
+    const body = await req.json();
     
     // Atualizar quiz
     const updatedQuiz = await Quiz.findByIdAndUpdate(
-      quizId,
+      id,
       {
         title: body.title,
         description: body.description,
@@ -117,21 +117,21 @@ export async function PUT(
     }
     return NextResponse.json({ error: "Erro ao atualizar quiz" }, { status: 500 });
   }
-}
+};
 
-export async function DELETE(
-  request: Request, 
+export const DELETE = async (
+  req: NextRequest,
   { params }: { params: { quizId: string } }
-) {
+) => {
   try {
-    // No Next.js 15, devemos acessar diretamente o parâmetro
-    const quizId = params.quizId;
+    // Acessa o parâmetro de forma segura
+    const id = params.quizId;
     
     // Validar sessão
     const session = await validateSession();
     
     // Validar quiz
-    const quiz = await validateQuizId(quizId);
+    const quiz = await validateQuizId(id);
     
     // Verificar se é o dono do quiz
     if (session.user.id !== quiz.userId.toString()) {
@@ -139,7 +139,7 @@ export async function DELETE(
     }
     
     // Excluir quiz
-    await Quiz.findByIdAndDelete(quizId);
+    await Quiz.findByIdAndDelete(id);
     
     return NextResponse.json({ message: "Quiz excluído com sucesso" });
   } catch (error: any) {
@@ -151,4 +151,4 @@ export async function DELETE(
     }
     return NextResponse.json({ error: "Erro ao excluir quiz" }, { status: 500 });
   }
-}
+};

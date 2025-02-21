@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
@@ -28,15 +28,15 @@ const validateSession = async () => {
   return session;
 };
 
-export async function GET(
-  request: Request, 
+export const GET = async (
+  req: NextRequest,
   { params }: { params: { quizId: string } }
-) {
+) => {
   try {
-    // No Next.js 15, devemos aguardar os parâmetros
-    const quizId = params.quizId;
+    // Acessa o parâmetro de forma segura
+    const id = params.quizId;
     
-    const quiz = await validateQuizId(quizId);
+    const quiz = await validateQuizId(id);
     
     // Para visualizar resultados, é necessário estar autenticado
     const session = await validateSession();
@@ -48,7 +48,7 @@ export async function GET(
     
     // Busca os resultados do quiz
     const results = await QuizResult.find({ 
-      quizId: new mongoose.Types.ObjectId(quizId) 
+      quizId: new mongoose.Types.ObjectId(id) 
     }).sort({ score: -1, createdAt: 1 });
     
     // Formata os resultados
@@ -60,7 +60,17 @@ export async function GET(
       createdAt: result.createdAt
     }));
     
-    return NextResponse.json(formattedResults);
+    // Deduplica os resultados (mantém apenas o melhor por jogador)
+    const uniqueResults = Object.values(
+      formattedResults.reduce((acc: Record<string, any>, current) => {
+        if (!acc[current.playerName] || acc[current.playerName].score < current.score) {
+          acc[current.playerName] = current;
+        }
+        return acc;
+      }, {})
+    );
+    
+    return NextResponse.json(uniqueResults);
   } catch (error: any) {
     console.error("Erro ao buscar resultados:", error);
     if (error.message === "Quiz não encontrado") {
@@ -72,24 +82,24 @@ export async function GET(
     }
     return NextResponse.json({ error: "Erro ao buscar resultados" }, { status: 500 });
   }
-}
+};
 
-export async function POST(
-  request: Request, 
+export const POST = async (
+  req: NextRequest,
   { params }: { params: { quizId: string } }
-) {
+) => {
   try {
-    // No Next.js 15, devemos aguardar os parâmetros
-    const quizId = params.quizId;
+    // Acessa o parâmetro de forma segura
+    const id = params.quizId;
     
-    const quiz = await validateQuizId(quizId);
+    const quiz = await validateQuizId(id);
     
     // Para resultados, não exigimos que o usuário esteja autenticado, apenas que o quiz exista e esteja publicado
     if (!quiz.isPublished) {
       return NextResponse.json({ error: "Quiz não está publicado" }, { status: 403 });
     }
     
-    const body = await request.json();
+    const body = await req.json();
     
     // Validar os dados recebidos
     if (!body.playerName || typeof body.score !== 'number' || typeof body.totalQuestions !== 'number') {
@@ -98,7 +108,7 @@ export async function POST(
     
     // Verificar se já existe um resultado similar recente (últimos 30 segundos)
     const recentResult = await QuizResult.findOne({
-      quizId: new mongoose.Types.ObjectId(quizId),
+      quizId: new mongoose.Types.ObjectId(id),
       playerName: body.playerName,
       createdAt: { $gte: new Date(Date.now() - 30000) } // 30 segundos atrás
     });
@@ -116,7 +126,7 @@ export async function POST(
     
     // Criar o resultado
     const result = await QuizResult.create({
-      quizId: new mongoose.Types.ObjectId(quizId),
+      quizId: new mongoose.Types.ObjectId(id),
       playerName: body.playerName,
       score: body.score,
       totalQuestions: body.totalQuestions
@@ -138,4 +148,4 @@ export async function POST(
     }
     return NextResponse.json({ error: "Erro ao salvar resultado" }, { status: 500 });
   }
-}
+};
