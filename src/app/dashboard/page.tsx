@@ -1,64 +1,66 @@
+// src/app/dashboard/page.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { QuizList } from '@/components/dashboard/QuizList'
 import { Button } from '@/components/ui/button'
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession()
-  const [isLoading, setIsLoading] = useState(true)
-  
-  // Verificar autenticação e localStorage
-  useEffect(() => {
-    const isAuth = localStorage.getItem('isAuthenticated')
-    console.log('Dashboard - Estado da sessão:', status)
-    console.log('Dashboard - Local storage auth:', isAuth)
-    
-    if (status === 'unauthenticated' && !isAuth) {
-      console.log('Não autenticado no dashboard, redirecionando...')
-      window.location.href = '/login'
-    } else {
-      setIsLoading(false)
-    }
-  }, [status])
-  
-  // Mostrar um loader enquanto verifica autenticação
-  if (isLoading || status === 'loading') {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-        <p className="ml-3">Verificando autenticação...</p>
-      </div>
-    )
-  }
-  
-  // Se chegou aqui, deve estar autenticado
-  // Remover o flag do localStorage pois o usuário já está no dashboard
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('isAuthenticated')
-  }
-  
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800">Meus Quizzes</h1>
-        <div>
-          <p className="text-sm text-gray-500 mb-2">
-            Conectado como: {session?.user?.email || 'Usuário'}
+    <div className="max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800 mb-3 sm:mb-0">Meus Quizzes</h1>
+        <Link href="/dashboard/quiz/create" passHref>
+          <Button size="sm" className="whitespace-nowrap">
+            <Plus className="w-4 h-4 mr-2" />
+            Criar Novo Quiz
+          </Button>
+        </Link>
+      </div>
+      
+      <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+        <QuizList />
+      </div>
+      
+      {/* Informações adicionais */}
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+          <h2 className="text-lg font-semibold mb-2">Instruções Rápidas</h2>
+          <p className="text-gray-600 text-sm">
+            Crie quizzes interativos e compartilhe com seus alunos ou participantes.
+            Você pode visualizar todos os resultados em tempo real.
           </p>
-          <Link href="/dashboard/quiz/create">
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Criar Novo Quiz
-            </Button>
-          </Link>
+        </div>
+        
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+          <h2 className="text-lg font-semibold mb-2">Estatísticas</h2>
+          <div className="flex justify-between">
+            <div className="text-center">
+              <span className="block text-2xl font-bold text-blue-600">3</span>
+              <span className="text-sm text-gray-500">Quizzes</span>
+            </div>
+            <div className="text-center">
+              <span className="block text-2xl font-bold text-green-600">27</span>
+              <span className="text-sm text-gray-500">Respostas</span>
+            </div>
+            <div className="text-center">
+              <span className="block text-2xl font-bold text-purple-600">82%</span>
+              <span className="text-sm text-gray-500">Média</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 md:col-span-2 lg:col-span-1">
+          <h2 className="text-lg font-semibold mb-2">Ajuda</h2>
+          <p className="text-gray-600 text-sm mb-2">
+            Precisa de ajuda para utilizar a plataforma?
+          </p>
+          <a href="#" className="text-blue-600 text-sm hover:underline">
+            Acessar documentação →
+          </a>
         </div>
       </div>
-
-      <QuizList />
     </div>
   )
 }
