@@ -3,6 +3,5 @@
     "src/app/api/**/*": {
       "memory": 1024
     }
-  },
-  "buildCommand": "npm run build"
+  }
 }

@@ -1,6 +1,6 @@
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 20:41:17  
+**Gerado em:** 20/02/2025, 21:31:07  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -91,6 +91,41 @@ function buildMarkdown(structure, depth = 0) {
 // ... (conteúdo truncado)
 ```
 
+- 📄 global.d.ts
+
+```typescript
+declare global {
+    var prisma: import('@prisma/client').PrismaClient | undefined;
+  }
+```
+
+- 📁 netlify/
+  - 📁 functions/
+    - 📄 postinstall.js
+    
+```javascript
+// netlify/functions/postinstall.js
+const { execSync } = require('child_process');
+
+exports.handler = async function(event, context) {
+  try {
+    console.log('Gerando Prisma Client...');
+    execSync('npx prisma generate');
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ message: 'Prisma Client gerado com sucesso' })
+    };
+  } catch (error) {
+    console.error('Erro ao gerar Prisma Client:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Falha ao gerar Prisma Client' })
+    };
+  }
+};
+    ```
+
+- 📄 netlify.toml
 - 📄 next-env.d.ts
 
 ```typescript
@@ -103,32 +138,6 @@ function buildMarkdown(structure, depth = 0) {
 ```
 
 - 📄 next.config.mjs
-- 📄 next.config.ts
-
-```typescript
-// @ts-nocheck
-
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  // Configuração para permitir a inicialização adequada do Prisma
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      // Adiciona um plugin para garantir que o Prisma seja gerado corretamente 
-      // durante o build da Vercel
-      if (!config.externals) {
-        config.externals = [];
-      } else if (!Array.isArray(config.externals)) {
-        config.externals = [config.externals];
-      }
-      config.externals.push('_http_common');
-    }
-    return config;
-  },
-};
-
-module.exports = nextConfig;
-```
-
 - 📄 package.json
 
 ```json
@@ -136,14 +145,12 @@ module.exports = nextConfig;
   "name": "dna-vital-quiz-next",
   "version": "0.1.0",
   "private": true,
-  
-    "scripts": {
-      "dev": "next dev",
-      "build": "prisma generate && next build",
-      "start": "next start", 
-      "lint": "next lint",
-      "postinstall": "prisma generate"
-    },
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
   "prisma": {
     "schema": "prisma/schema.prisma"
   },
@@ -162,6 +169,8 @@ module.exports = nextConfig;
     "next-auth": "^4.24.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "shadcn-ui": "^0.9.4",
+    "tailwind-merge": "^3.0.1",
 // ... (conteúdo truncado)
 ```
 
@@ -173,7 +182,7 @@ module.exports = nextConfig;
 ```md
 # Estrutura do Projeto
 
-**Gerado em:** 20/02/2025, 20:33:51  
+**Gerado em:** 20/02/2025, 21:19:36  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -329,7 +338,7 @@ export default function RegisterPage() {
           - 📄 route.ts
           
 ```typescript
-// src/app/api/auth/[...nextauth]/route.ts
+
 import NextAuth from "next-auth"
 import { authOptions } from "@/lib/auth"
 
@@ -346,7 +355,7 @@ export { handler as GET, handler as POST }
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma-client"
+import prisma  from "@/lib/prisma-client"
 
 // POST - Criar novo quiz
 export async function POST(request: Request) {
@@ -381,7 +390,7 @@ export async function POST(request: Request) {
             
 ```typescript
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma-client"
+import prisma  from "@/lib/prisma-client"
 
 // Tipos
 interface ResultRequestBody {
@@ -419,7 +428,7 @@ async function getTopResults(quizId: string) {
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma-client"
+import prisma  from "@/lib/prisma-client"
 
 interface RouteContext {
   params: Promise<{ quizId: string }>
@@ -757,7 +766,7 @@ export default function Home() {
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma-client"
+import prisma  from "@/lib/prisma-client"
 
 // POST - Criar novo quiz
 export async function POST(request: Request) {
@@ -1493,7 +1502,12 @@ export const WelcomeScreen = () => {
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { compare } from "bcryptjs"
-import { prisma } from "./prisma-client"
+import prisma from "./prisma-client";
+
+// Verificação para garantir que o Prisma foi inicializado
+if (!prisma) {
+  throw new Error("Prisma não foi inicializado. Verifique a configuração.")
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -1515,11 +1529,6 @@ export const authOptions: NextAuthOptions = {
 
           if (!user) {
             return null
-          }
-
-          const isPasswordValid = await compare(
-            credentials.password, 
-            user.password
 // ... (conteúdo truncado)
     ```
 
@@ -1562,18 +1571,26 @@ main()
     - 📄 prisma-client.ts
     
 ```typescript
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client';
 
-// Declaramos uma variável global para o PrismaClient
-const globalForPrisma = global as unknown as { prisma: PrismaClient }
-
-// Exportamos uma única instância do PrismaClient
-export const prisma = globalForPrisma.prisma || new PrismaClient()
-
-// Em desenvolvimento, anexamos o cliente ao objeto global
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma
+declare global {
+  var prisma: PrismaClient | undefined;
 }
+
+const prisma =
+  global.prisma ||
+  new PrismaClient({
+    log:
+      process.env.NODE_ENV === 'development'
+        ? ['query', 'error', 'warn']
+        : ['error'],
+  });
+
+if (process.env.NODE_ENV !== 'production') {
+  global.prisma = prisma;
+}
+
+export default prisma;
     ```
 
     - 📄 utils.ts
@@ -1830,6 +1847,15 @@ const config: Config = {
 // ... (conteúdo truncado)
 ```
 
+- 📄 vercel-build.js
+
+```javascript
+const { execSync } = require('child_process');
+
+execSync('prisma generate', { stdio: 'inherit' });
+execSync('prisma db push', { stdio: 'inherit' });
+```
+
 - 📄 vercel.json
 
 ```json
@@ -1838,7 +1864,6 @@ const config: Config = {
     "src/app/api/**/*": {
       "memory": 1024
     }
-  },
-  "buildCommand": "npm run build"
+  }
 }
 ```
