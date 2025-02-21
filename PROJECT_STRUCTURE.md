@@ -1,6 +1,6 @@
 # Estrutura do Projeto
 
-**Gerado em:** 21/02/2025, 00:56:05  
+**Gerado em:** 21/02/2025, 12:53:40  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -9,7 +9,7 @@
 
 ```json
 {
-    "extends": "next/core-web-vitals",
+     "extends": "next/core-web-vitals",
     "rules": {
       // "@typescript-eslint/no-explicit-any": ["error", {
       //   "ignoreRestArgs": true
@@ -131,7 +131,7 @@ export {};
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint --config eslint.config.mjs ."
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.6",
@@ -162,7 +162,7 @@ export {};
 ```md
 # Estrutura do Projeto
 
-**Gerado em:** 21/02/2025, 00:36:19  
+**Gerado em:** 21/02/2025, 00:56:05  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -394,11 +394,11 @@ const validateQuizId = async (quizId: string) => {
   return quiz;
 };
 
-// Usando a sintaxe específica do Next.js 15 para Segment Config
-export const GET = async (
+// Usando a sintaxe correta do Next.js 15 para route handlers
+export async function GET(
   req: NextRequest,
   { params }: { params: { quizId: string } }
-) => {
+) {
   try {
 // ... (conteúdo truncado)
               ```
