@@ -1,162 +1,126 @@
 import { NextResponse } from "next/server";
-import prisma  from "@/lib/prisma-client"
-
-// Tipos
-interface ResultRequestBody {
-  playerName: string;
-  score: number;
-  totalQuestions: number;
-}
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 interface RouteContext {
   params: Promise<{ quizId: string }>;
 }
 
-// Funções auxiliares
-async function getQuizById(quizId: string) {
+// Helper function para validar o quizId
+const validateQuizId = async (quizId: string) => {
+  const prisma = (await import("@/lib/prisma-client")).default;
+  const quiz = await prisma.quiz.findUnique({
+    where: { id: quizId },
+  });
+  return quiz;
+};
+
+// Helper function para validar a sessão
+const validateSession = async () => {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    throw new Error("Não autorizado");
+  }
+  return session;
+};
+
+export async function GET(request: Request, { params }: RouteContext) {
   try {
-    return await prisma.quiz.findUnique({
-      where: { id: quizId }
-    });
+    const { quizId } = await params;
+    const quiz = await validateQuizId(quizId);
+
+    if (!quiz) {
+      return NextResponse.json({ error: "Quiz não encontrado" }, { status: 404 });
+    }
+
+    return NextResponse.json(quiz);
   } catch (error) {
-    console.error('Erro ao buscar quiz:', error);
-    return null;
+    console.error("Erro ao buscar quiz:", error);
+    return NextResponse.json({ error: "Erro ao buscar quiz" }, { status: 500 });
   }
 }
 
-async function getTopResults(quizId: string) {
+export async function DELETE(request: Request, { params }: RouteContext) {
+  const prisma = (await import("@/lib/prisma-client")).default;
   try {
-    // Primeiro, pegamos os melhores resultados por jogador
-    const results = await prisma.result.findMany({
-      where: { quizId },
-      orderBy: [
-        { score: 'desc' },
-        { createdAt: 'desc' }
-      ],
-      distinct: ['playerName'],
-      take: 10,
-      select: {
-        id: true,
-        playerName: true,
-        score: true,
-        totalQuestions: true,
-        createdAt: true,
-        answers: true
-      }
-    });
+    const { quizId } = await params;
+    const session = await validateSession();
+    const quiz = await validateQuizId(quizId);
 
-    return results;
+    if (!quiz) {
+      return NextResponse.json(
+        { success: false, message: "Quiz não encontrado" },
+        { status: 404 }
+      );
+    }
+
+    if (quiz.userId !== session.user.id) {
+      return NextResponse.json(
+        { success: false, message: "Não autorizado" },
+        { status: 403 }
+      );
+    }
+
+    // Usando transação para garantir a integridade dos dados
+    await prisma.$transaction([
+      prisma.result.deleteMany({ where: { quizId } }),
+      prisma.quiz.delete({ where: { id: quizId } }),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      message: "Quiz excluído com sucesso",
+    });
   } catch (error) {
-    console.error('Erro ao buscar top resultados:', error);
-    return [];
+    if (error instanceof Error && error.message === "Não autorizado") {
+      return NextResponse.json(
+        { success: false, message: "Não autorizado" },
+        { status: 401 }
+      );
+    }
+
+    console.error("Erro ao excluir quiz:", error);
+    return NextResponse.json(
+      { success: false, message: "Erro ao excluir quiz" },
+      { status: 500 }
+    );
   }
 }
 
-async function createResult(quizId: string, data: ResultRequestBody) {
+export async function PUT(request: Request, { params }: RouteContext) {
+  const prisma = (await import("@/lib/prisma-client")).default;
   try {
-    return await prisma.result.create({
+    const { quizId } = await params;
+    const session = await validateSession();
+    const quiz = await validateQuizId(quizId);
+
+    if (!quiz) {
+      return NextResponse.json({ error: "Quiz não encontrado" }, { status: 404 });
+    }
+
+    if (quiz.userId !== session.user.id) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+    }
+
+    const body = await request.json();
+
+    const updatedQuiz = await prisma.quiz.update({
+      where: { id: quizId },
       data: {
-        quizId,
-        playerName: data.playerName,
-        score: data.score,
-        totalQuestions: data.totalQuestions,
-      }
+        title: body.title,
+        description: body.description,
+        questions: body.questions,
+        isPublished: body.isPublished,
+      },
     });
+
+    return NextResponse.json(updatedQuiz);
   } catch (error) {
-    console.error('Erro ao criar resultado:', error);
-    throw error;
-  }
-}
-
-async function checkRecentResult(quizId: string, playerName: string) {
-  try {
-    return await prisma.result.findFirst({
-      where: {
-        quizId,
-        playerName,
-        createdAt: {
-          gte: new Date(Date.now() - 5000) // 5 segundos
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Erro ao verificar resultado recente:', error);
-    return null;
-  }
-}
-
-// Handlers
-export async function GET(
-  request: Request,
-  context: RouteContext
-) {
-  try {
-    const params = await context.params;
-    const { quizId } = params;
-
-  
-
-    const quiz = await getQuizById(quizId);
-    if (!quiz) {
-      return NextResponse.json(
-        { error: "Quiz não encontrado" },
-        { status: 404 }
-      );
+    if (error instanceof Error && error.message === "Não autorizado") {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    const results = await getTopResults(quizId);
-    return NextResponse.json(results);
-
-  } catch (error) {
-    console.error('Erro no GET:', error);
-    return NextResponse.json(
-      { error: "Erro interno do servidor" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function POST(
-  request: Request,
-  context: RouteContext
-) {
-  try {
-    const params = await context.params;
-    const { quizId } = params;
-
-    // Validação do Quiz
-    const quiz = await getQuizById(quizId);
-    if (!quiz) {
-      return NextResponse.json(
-        { error: "Quiz não encontrado" },
-        { status: 404 }
-      );
-    }
-
-    // Validação do body
-    const body: ResultRequestBody = await request.json();
-    if (!body.playerName || typeof body.score !== 'number' || typeof body.totalQuestions !== 'number') {
-      return NextResponse.json(
-        { error: "Dados inválidos" },
-        { status: 400 }
-      );
-    }
-
-    // Verifica submissão recente
-    const recentResult = await checkRecentResult(quizId, body.playerName);
-    if (recentResult) {
-      return NextResponse.json(recentResult);
-    }
-
-    // Cria novo resultado
-    const result = await createResult(quizId, body);
-    return NextResponse.json(result);
-
-  } catch (error) {
-    console.error('Erro no POST:', error);
-    return NextResponse.json(
-      { error: "Erro interno do servidor" },
-      { status: 500 }
-    );
+    console.error("Erro ao atualizar quiz:", error);
+    return NextResponse.json({ error: "Erro ao atualizar quiz" }, { status: 500 });
   }
 }
