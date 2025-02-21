@@ -1,18 +1,19 @@
 const { PrismaClient } = require('@prisma/client')
 const { hash } = require('bcryptjs')
 
-const prisma = new PrismaClient()
+// Renomeie a variável para evitar conflitos
+const prismaClient = new PrismaClient()
 
 async function main() {
   try {
     // Limpar banco de dados existente
-    await prisma.result.deleteMany({})
-    await prisma.quiz.deleteMany({})
-    await prisma.user.deleteMany({})
+    await prismaClient.result.deleteMany({})
+    await prismaClient.quiz.deleteMany({})
+    await prismaClient.user.deleteMany({})
 
     // Criar usuário admin
     const hashedPassword = await hash('123456', 10)
-    const admin = await prisma.user.create({
+    const admin = await prismaClient.user.create({
       data: {
         name: 'Administrador',
         email: 'admin@dnavital.com',
@@ -23,7 +24,7 @@ async function main() {
     console.log('Admin criado:', admin)
 
     // Criar quiz exemplo
-    const quiz = await prisma.quiz.create({
+    const quiz = await prismaClient.quiz.create({
       data: {
         title: 'Quiz DNA Básico',
         description: 'Teste seus conhecimentos sobre DNA e genética',
@@ -74,13 +75,13 @@ async function main() {
     console.error('Erro ao executar seed:', error)
     throw error
   } finally {
-    await prisma.$disconnect()
+    await prismaClient.$disconnect()
   }
 }
 
 main()
   .catch(async (e) => {
     console.error(e)
-    await prisma.$disconnect()
+    await prismaClient.$disconnect()
     process.exit(1)
   })
