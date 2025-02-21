@@ -38,13 +38,8 @@ export default function LoginPage() {
           opacity: 0,
           repeat: -1,
           yoyo: true,
-          ease: 'power1.inOut',
         })
       })
-
-      return () => {
-        particles.forEach(particle => particle.remove())
-      }
     }
   }, [])
 
@@ -53,93 +48,111 @@ export default function LoginPage() {
     setErrorMessage('')
     setLoading(true)
 
-    const formData = new FormData(e.currentTarget)
-    
     try {
+      const formData = new FormData(e.currentTarget)
+      const email = formData.get('email') as string
+      const password = formData.get('password') as string
+
+      console.log('Tentando login com:', { email })
+
       const result = await signIn('credentials', {
-        email: formData.get('email'),
-        password: formData.get('password'),
+        email,
+        password,
         redirect: false,
       })
 
       if (result?.error) {
-        setErrorMessage('Credenciais inválidas')
+        console.error('Erro de login:', result.error)
+        setErrorMessage('Email ou senha inválidos')
+        setLoading(false)
       } else {
+        console.log('Login bem-sucedido, redirecionando...')
+        // Força redirecionamento programático
         router.push('/dashboard')
+        router.refresh()
       }
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Ocorreu um erro ao fazer login'
-      setErrorMessage(errorMessage)
-    } finally {
+    } catch (error) {
+      console.error('Erro ao processar login:', error)
+      setErrorMessage('Ocorreu um erro ao tentar fazer login')
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-white relative overflow-hidden">
-      <div ref={particlesRef} className="absolute inset-0" />
+    <div className="relative min-h-screen bg-white overflow-hidden">
+      <div ref={particlesRef} className="absolute inset-0 pointer-events-none" />
       
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 flex flex-col items-center justify-center min-h-screen p-4"
-      >
+      <div className="flex items-center justify-center min-h-screen">
         <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className="mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="bg-white w-full max-w-md p-8 rounded-lg shadow-lg"
         >
-          <Dna size={80} className="text-blue-600" />
-        </motion.div>
-
-        <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-8 text-center">
+          <div className="flex justify-center mb-6">
+            <Dna className="h-12 w-12 text-blue-600" />
+          </div>
+          
+          <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
             DNA Vital Quiz
-          </h1>
-
+          </h2>
+          
           {errorMessage && (
-            <div className="mb-4 p-3 bg-red-100 text-red-600 rounded-lg text-sm">
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+            >
               {errorMessage}
-            </div>
+            </motion.div>
           )}
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+          
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <label htmlFor="email" className="block text-gray-700 text-sm font-medium mb-1">
                 Email
               </label>
               <input
                 type="email"
+                id="email"
                 name="email"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            
+            <div className="mb-6">
+              <label htmlFor="password" className="block text-gray-700 text-sm font-medium mb-1">
                 Senha
               </label>
               <input
                 type="password"
+                id="password"
                 name="password"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            
+            <button
               type="submit"
               disabled={loading}
-              className="w-full px-8 py-3 text-lg font-semibold text-white bg-blue-600 rounded-lg disabled:opacity-50"
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-70"
             >
               {loading ? 'Entrando...' : 'Entrar'}
-            </motion.button>
+            </button>
           </form>
-        </div>
-      </motion.div>
+          
+          <div className="mt-4 text-center">
+            <p className="text-sm text-gray-600">
+              Não tem uma conta?{' '}
+              <a href="/register" className="text-blue-600 hover:underline">
+                Registre-se
+              </a>
+            </p>
+          </div>
+        </motion.div>
+      </div>
     </div>
   )
 }

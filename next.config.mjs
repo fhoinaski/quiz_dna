@@ -1,15 +1,26 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    webpack: (config, { isServer }) => {
-      if (isServer) {
-        config.externals = [
-          ...(config.externals || []), 
-          'encoding', 
-          '@prisma/client/runtime'
-        ]
-      }
-      return config
+  reactStrictMode: true,
+  swcMinify: true,
+  experimental: {
+    // Remova a linha optimizeCss: true que está causando o problema
+    serverActions: {
+      bodySizeLimit: '2mb',
     },
-  };
-  
-  export default nextConfig;
+  },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, max-age=0',
+          },
+        ],
+      },
+    ];
+  },
+};
+
+export default nextConfig;
