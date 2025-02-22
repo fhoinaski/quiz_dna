@@ -1,6 +1,6 @@
 # Estrutura do Projeto
 
-**Gerado em:** 21/02/2025, 16:11:31  
+**Gerado em:** 22/02/2025, 08:26:03  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -10,13 +10,28 @@
 ```javascript
 // .eslintrc.js
 module.exports = {
-    extends: ["next/core-web-vitals"],
+    env: {
+      browser: true,
+      node: true,
+      es2021: true,
+    },
+    parser: "@typescript-eslint/parser", // Define o parser para TypeScript
+    parserOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+    },
+    extends: [
+      "next/core-web-vitals", // Configuração padrão do Next.js
+      "plugin:@typescript-eslint/recommended", // Regras recomendadas do @typescript-eslint
+    ],
+    plugins: ["@typescript-eslint"], // Adiciona o plugin @typescript-eslint
     rules: {
+    
       "react-hooks/exhaustive-deps": "warn",
-      "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unused-vars": "error"
-    }
-  }
+      "@typescript-eslint/no-explicit-any": "off", // Define como aviso
+      "@typescript-eslint/no-unused-vars": "error", // Define como erro
+    },
+  };
 ```
 
 - 📄 .gitattributes
@@ -133,7 +148,7 @@ export {};
     "framer-motion": "^12.4.5",
     "gsap": "^3.12.7",
     "lucide-react": "^0.475.0",
-    "mongoose": "^8.2.0",
+    "mongoose": "^8.10.1",
     "next": "^15.1.7",
     "next-auth": "^4.24.11",
     "react": "^19.0.0",
@@ -153,7 +168,7 @@ export {};
 ```md
 # Estrutura do Projeto
 
-**Gerado em:** 21/02/2025, 13:09:19  
+**Gerado em:** 22/02/2025, 01:05:47  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -163,24 +178,24 @@ export {};
 ```javascript
 // .eslintrc.js
 module.exports = {
-    extends: ["next/core-web-vitals"],
+    env: {
+      browser: true,
+      node: true,
+      es2021: true,
+    },
+    parser: "@typescript-eslint/parser", // Define o parser para TypeScript
+    parserOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+    },
+    extends: [
+      "next/core-web-vitals", // Configuração padrão do Next.js
+      "plugin:@typescript-eslint/recommended", // Regras recomendadas do @typescript-eslint
+    ],
+    plugins: ["@typescript-eslint"], // Adiciona o plugin @typescript-eslint
     rules: {
       "react-hooks/exhaustive-deps": "warn",
-      "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unused-vars": "error"
-    }
-  }
-```
-
-- 📄 .gitattributes
-- 📄 components.json
-
-```json
-{
-  "$schema": "https://ui.shadcn.com/schema.json",
-  "style": "default",
-  "rsc": true,
-  "tsx": true,
+      "@typescript-eslint/no-explicit-any": "warn", // Define como aviso
 // ... (conteúdo truncado)
 ```
 
@@ -237,7 +252,6 @@ Este guia explica as mudanças feitas para migrar o projeto do Prisma para o Mon
 
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Dna } from 'lucide-react'
 import { useEffect, useRef } from 'react'
@@ -246,12 +260,13 @@ import gsap from 'gsap'
 export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
   const particlesRef = useRef<HTMLDivElement>(null)
+  const [redirectCount, setRedirectCount] = useState(0)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
     
+    // Configuração das partículas
     if (particlesRef.current) {
       const particles = Array.from({ length: 50 }).map(() => {
         const particle = document.createElement('div')
@@ -356,150 +371,261 @@ export async function POST(request: NextRequest) {
         ```
 
         - 📁 [quizId]/
-          - 📁 results/
-            - 📁 public/
-              - 📄 route.ts
-              
+          - 📁 public/
+            - 📄 route.ts
+            
 ```typescript
+// src/app/api/quiz/[quizId]/public/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
+import { connectToDatabase } from "@/lib/mongodb";
+import mongoose, { Model } from "mongoose";
+import { IQuiz, Quiz } from "@/models";
+
+// Tipando o modelo Quiz explicitamente
+type QuizModel = Model<IQuiz>;
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { quizId: string } }
+  context: { params: Promise<{ quizId: string }> }
 ) {
   try {
+    // Aguardar os parâmetros
+    const params = await context.params;
     const { quizId } = params;
 
-    if (!quizId || typeof quizId !== 'string') {
+    if (!quizId || !mongoose.Types.ObjectId.isValid(quizId)) {
       return NextResponse.json(
         { error: 'Parâmetro quizId inválido' },
         { status: 400 }
       );
     }
 
-    const result = {
-      quizId,
-      status: 'completed',
-      score: Math.floor(Math.random() * 100),
-      timestamp: new Date().toISOString(),
-    };
+    // Conectar ao banco de dados
+    await connectToDatabase();
 
-    return NextResponse.json(result, { status: 200 });
-  } catch (error) {
-    console.error(`Erro na rota /quiz/[quizId]/results/public: ${error}`);
-    return NextResponse.json(
-      { error: 'Erro interno no servidor' },
-      { status: 500 }
-    );
+    // Buscar o quiz, verificando se ele está publicado (isPublished: true)
+// ... (conteúdo truncado)
+            ```
+
+          - 📁 results/
+            - 📁 public/
+              - 📄 route.ts
+              
+```typescript
+// src/app/api/quiz/[quizId]/results/public/route.ts
+
+import { NextRequest, NextResponse } from 'next/server';
+import { connectToDatabase } from "@/lib/mongodb";
+import mongoose, { Model } from "mongoose";
+import { IQuiz, IQuizResult, Quiz, QuizResult } from "@/models";
+
+// Tipando os modelos explicitamente
+type QuizModel = Model<IQuiz>;
+type QuizResultModel = Model<IQuizResult>;
+
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ quizId: string }> }
+) {
+  try {
+    // Aguardar os parâmetros
+    const params = await context.params;
+    const { quizId } = params;
+
+    if (!quizId || !mongoose.Types.ObjectId.isValid(quizId)) {
+      // Retornar array vazio em vez de erro
+      return NextResponse.json([], { status: 200 });
+    }
+
+    // Conectar ao banco de dados
+    await connectToDatabase();
+
+    // Verificar se o quiz existe e é público
+    const quiz = await (Quiz as QuizModel)
 // ... (conteúdo truncado)
               ```
 
             - 📄 route.ts
             
 ```typescript
+// src/app/api/quiz/[quizId]/results/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
-import mongoose, { Schema, Document, Model } from "mongoose";
+import mongoose, { Model } from "mongoose";
 import { IQuiz, IQuizResult, Quiz, QuizResult } from "@/models";
-
-// Interface para os parâmetros da rota
-interface RouteParams {
-  params: { quizId: string };
-}
 
 // Tipando os modelos explicitamente
 type QuizModel = Model<IQuiz>;
 type QuizResultModel = Model<IQuizResult>;
 
-// Helper function para validar o quizId
-const validateQuizId = async (quizId: string): Promise<IQuiz> => {
-  if (!mongoose.Types.ObjectId.isValid(quizId)) {
-    throw new Error("ID de quiz inválido");
+// Função para calcular bônus de tempo
+function calculateTimeBonus(timeToAnswer: number): number {
+  // Se responder em menos de 3 segundos, ganha 50 pontos extras
+  // Se responder entre 3 e 10 segundos, ganha entre 1 e 50 pontos extras (linear)
+  // Após 10 segundos, não há bônus
+  if (timeToAnswer <= 3) {
+    return 50;
+  } else if (timeToAnswer <= 10) {
+    return Math.floor(50 * ((10 - timeToAnswer) / 7));
+  } else {
+    return 0;
   }
+}
 
-  await connectToDatabase();
-  const quiz = await (Quiz as QuizModel).findById(quizId).exec();
-  if (!quiz) {
-    throw new Error("Quiz não encontrado");
-  }
-  return quiz;
-};
-
+// POST - Criar novo resultado de quiz (pode ser enviado sem autenticação)
+export async function POST(
+  request: NextRequest,
 // ... (conteúdo truncado)
             ```
 
           - 📄 route.ts
           
 ```typescript
+// src/app/api/quiz/[quizId]/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
-import mongoose, { Schema, Document, Model } from "mongoose";
-import { IQuiz, IQuizResult, Quiz, QuizResult } from "@/models";
+import mongoose, { Model } from "mongoose";
+import { IQuiz, Quiz } from "@/models";
 
-// Interface para os parâmetros da rota
-interface RouteParams {
-  params: { quizId: string };
-}
-
-// Tipando os modelos explicitamente
+// Tipando o modelo Quiz explicitamente
 type QuizModel = Model<IQuiz>;
-type QuizResultModel = Model<IQuizResult>;
 
-// Helper function para validar o quizId
-const validateQuizId = async (quizId: string): Promise<IQuiz> => {
-  if (!mongoose.Types.ObjectId.isValid(quizId)) {
-    throw new Error("ID de quiz inválido");
-  }
+// GET - Obter quiz por ID
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ quizId: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
 
-  await connectToDatabase();
-  // Ajuste na chamada ao findById para garantir tipagem correta
-  const quiz = await (Quiz as QuizModel).findById(quizId).exec() as IQuiz | null;
-  if (!quiz) {
-    throw new Error("Quiz não encontrado");
-  }
-  return quiz;
-};
+    // Aguardar os parâmetros
+    const params = await context.params;
+    const { quizId } = params;
+
+    // Verificar se o ID é válido
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+      return NextResponse.json(
 // ... (conteúdo truncado)
           ```
+
+          - 📁 session/
+            - 📁 join/
+              - 📄 route.ts
+              
+```typescript
+import { NextRequest, NextResponse } from 'next/server'
+import { connectToDatabase } from '@/lib/mongodb'
+import mongoose, { Model } from 'mongoose'
+import { IQuizSession, QuizSession } from '@/models'
+
+// Tipagem explícita para o modelo QuizSession
+type QuizSessionModel = Model<IQuizSession>
+
+// Interface para o corpo da requisição
+interface JoinRequestBody {
+  playerName: string
+  playerAvatar: string
+  userId?: string | null
+}
+
+export async function POST(request: NextRequest, context: { params: Promise<{ quizId: string }> }) {
+  try {
+    // Extrair os parâmetros da URL
+    const params = await context.params
+    const { quizId } = params
+    console.log(`[POST /api/quiz/${quizId}/session/join] Recebendo requisição para quizId: ${quizId}`)
+
+    // Validar o quizId
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+      console.error(`[ERROR] ID de quiz inválido: ${quizId}`)
+      return NextResponse.json(
+        { error: 'ID de quiz inválido', details: 'O quizId fornecido não é um ObjectId válido' },
+        { status: 400 }
+      )
+    }
+// ... (conteúdo truncado)
+              ```
+
+            - 📄 route.ts
+            
+```typescript
+// src/app/api/quiz/[quizId]/session/route.ts
+
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { connectToDatabase } from "@/lib/mongodb";
+import mongoose, { Model } from "mongoose";
+import { IQuiz, IQuizSession, Quiz, QuizSession } from "@/models";
+
+type QuizModel = Model<IQuiz>;
+type QuizSessionModel = Model<IQuizSession>;
+
+// POST - Criar ou atualizar sessão de quiz
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ quizId: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+
+    const params = await context.params;
+    const { quizId } = params;
+
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+      return NextResponse.json(
+        { error: "ID de quiz inválido" },
+        { status: 400 }
+// ... (conteúdo truncado)
+            ```
 
       - 📁 register/
         - 📄 route.ts
         
 ```typescript
-import { NextRequest, NextResponse } from "next/server"; // Use NextRequest para consistência
+import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectToDatabase } from "@/lib/mongodb";
-import mongoose, { Model } from "mongoose";
+import { Model } from "mongoose";
 import { IUser, User } from "@/models";
 
-// Tipando o modelo User explicitamente
+// Tipagem explícita do modelo User
 type UserModel = Model<IUser>;
 
 export async function POST(request: NextRequest) {
   console.log("Requisição recebida em /api/register");
 
   try {
+    // Conecta ao banco de dados primeiro
+    await connectToDatabase();
+
     // Tenta parsear o corpo da requisição com segurança
     let body;
     try {
       body = await request.json();
-      console.log("Corpo da requisição recebido:", body);
+      console.log("Corpo da requisição recebido:", { 
+        name: body.name, 
+        email: body.email,
+        password: body.password ? "[REDACTED]" : undefined 
+      });
     } catch (jsonError) {
       console.error("Erro ao parsear JSON da requisição:", jsonError);
-      return NextResponse.json({ error: "Formato de dados inválido" }, { status: 400 });
-    }
-
-    const { name, email, password } = body;
-
-    // Verifica se todos os campos necessários estão presentes
-    if (!name || !email || !password) {
-      console.log("Dados incompletos recebidos:", { name, email, password });
-      return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
-    }
+      return NextResponse.json(
+        { error: "Formato de dados inválido" }, 
+        { status: 400 }
 // ... (conteúdo truncado)
         ```
 
@@ -507,12 +633,13 @@ export async function POST(request: NextRequest) {
       - 📄 layout.tsx
       
 ```tsx
+// src/app/dashboard/layout.tsx
 'use client'
 
-import { useSession } from 'next-auth/react'
+import { useState, useEffect } from 'react'
+import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
-import { Header } from '@/components/dashboard/Header'
+import { Menu, X } from 'lucide-react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 
 export default function DashboardLayout({
@@ -521,30 +648,29 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const { data: session, status } = useSession()
+  const [isLoading, setIsLoading] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const router = useRouter()
-
+  
+  // Verificar autenticação
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login') // Changed from '/auth/login' to '/login'
+    const isAuth = localStorage.getItem('isAuthenticated') || localStorage.getItem('manual_auth')
+    
+    const checkAuth = () => {
+      if (status === 'unauthenticated' && !isAuth) {
+        router.push('/login')
+      } else {
+        setIsLoading(false)
+      }
     }
-  }, [status, router])
-
-  if (status === 'loading') {
-    return <div>Carregando...</div>
-  }
-
-  if (!session) {
-    return null
-  }
-
 // ... (conteúdo truncado)
       ```
 
       - 📄 page.tsx
       
 ```tsx
+// src/app/dashboard/page.tsx
 'use client'
-
 
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
@@ -553,21 +679,27 @@ import { Button } from '@/components/ui/button'
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800">Meus Quizzes</h1>
-        <Link href="/dashboard/quiz/create">
-          <Button>
+    <div className="max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800 mb-3 sm:mb-0">Meus Quizzes</h1>
+        <Link href="/dashboard/quiz/create" passHref>
+          <Button size="sm" className="whitespace-nowrap">
             <Plus className="w-4 h-4 mr-2" />
             Criar Novo Quiz
           </Button>
         </Link>
       </div>
-
-      <QuizList />
-    </div>
-  )
-}
+      
+      <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+        <QuizList />
+      </div>
+      
+      {/* Informações adicionais */}
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+          <h2 className="text-lg font-semibold mb-2">Instruções Rápidas</h2>
+          <p className="text-gray-600 text-sm">
+// ... (conteúdo truncado)
       ```
 
       - 📁 quiz/
@@ -577,34 +709,34 @@ export default function DashboardPage() {
 ```tsx
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+
 import { motion } from 'framer-motion'
-import { Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 
-// Types
-interface Question {
-  text: string
-  options: string[]
-  correctAnswer: number
-  order: number
-}
+import { QuizForm } from '@/components/dashboard/QuizForm'
 
-interface QuizFormData {
-  title: string
-  description: string
-  questions: Question[]
-  isPublished: boolean
-}
+export default function CreateQuizPage() {
+  // const router = useRouter()
 
-// Components
-interface QuestionFormProps {
-  question: Question
-  questionIndex: number
-  onUpdate: (index: number, field: keyof Question, value: string | string[] | number) => void
-  onRemove: (index: number) => void
-  canRemove: boolean
-}
+  // Dados iniciais para um novo quiz (explicitamente definindo isPublished como false)
+  const initialData = {
+    title: '',
+    description: '',
+    questions: [
+      {
+        text: '',
+        options: ['', '', '', ''],
+        correctAnswer: 0,
+        order: 0
+      }
+    ],
+    isPublished: false // definido explicitamente como false para um novo quiz
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto py-8">
+      <div className="mb-6">
 // ... (conteúdo truncado)
           ```
 
@@ -613,17 +745,21 @@ interface QuestionFormProps {
             - 📄 page.tsx
             
 ```tsx
+// src/app/dashboard/quiz/[quizId]/edit/page.tsx
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { Plus, Trash2, ArrowLeft } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
+
+import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+
+import { QuizForm } from '@/components/dashboard/QuizForm'
+import { QuizControlPanel } from '@/components/dashboard/QuizControlPanel'
 
 // Interfaces
 interface Question {
-  id: string
+  id?: string
   text: string
   options: string[]
   correctAnswer: number
@@ -638,11 +774,44 @@ interface Quiz {
   isPublished: boolean
 }
 
-interface ApiError {
-  message: string
+export default function EditQuizPage() {
+// ... (conteúdo truncado)
+            ```
+
+          - 📁 results/
+            - 📄 page.tsx
+            
+```tsx
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
+import { motion } from 'framer-motion'
+import Link from 'next/link'
+import { Trophy, ArrowLeft, AlertTriangle } from 'lucide-react'
+
+// Interfaces baseadas no seu projeto
+interface Result {
+  id: string
+  playerName: string
+  score: number
+  totalQuestions: number
+  createdAt: string
 }
 
-// Componentes
+interface Quiz {
+  id: string
+  title: string
+}
+
+export default function QuizResultsPage() {
+  const params = useParams()
+  const quizId = params.quizId as string
+  const [results, setResults] = useState<Result[]>([])
+  const [quiz, setQuiz] = useState<Quiz | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [fetchAttempted, setFetchAttempted] = useState(false)
 // ... (conteúdo truncado)
             ```
 
@@ -653,33 +822,33 @@ interface ApiError {
 'use client'
 
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { BarChart2, FileText } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { BarChart2 } from 'lucide-react'
 
-type Quiz = {
+interface QuizWithResultCount {
   id: string
   title: string
   description: string
   _count: {
     results: number
   }
-}
-
-type Result = {
-  id: string
-  quizId: string
-  playerName: string
-  score: number
-  totalQuestions: number
   createdAt: string
-  quiz: {
-    title: string
-  }
 }
 
 export default function DashboardResultsPage() {
-  const [quizzes, setQuizzes] = useState<Quiz[]>([])
+  const [quizzes, setQuizzes] = useState<QuizWithResultCount[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [fetchAttempted, setFetchAttempted] = useState(false)
+
+  useEffect(() => {
+    // Evitar múltiplas chamadas
+    if (fetchAttempted) return
+    
+    const fetchQuizzes = async () => {
+      try {
+        setLoading(true)
 // ... (conteúdo truncado)
         ```
 
@@ -777,31 +946,31 @@ export default function Home() {
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useQuizStore } from '@/store'
-import { WelcomeScreen } from '@/components/quiz/WelcomeScreen'
 import { QuizScreen } from '@/components/quiz/QuizScreen'
 import { ResultsScreen } from '@/components/quiz/ResultsScreen'
+import { WaitingRoom } from '@/components/quiz/WaitingRoom'
+import { WelcomeScreen } from '@/components/quiz/WelcomeScreen'
+import Link from 'next/link'
+import { ArrowLeft, AlertTriangle } from 'lucide-react'
 
-interface Question {
-  text: string
-  options: string[]
-  correctAnswer: number
-  order: number
-}
+// interface Question {
+//   text: string
+//   options: string[]
+//   correctAnswer: number
+//   order: number
+// }
 
-interface Quiz {
-  id: string
-  title: string
-  description: string
-  questions: Question[]
-}
-
-interface ApiError {
-  message: string
-}
+// interface Quiz {
+//   id: string
+//   title: string
+//   description: string
+//   questions: Question[]
+// }
 
 export default function QuizPage() {
   const params = useParams()
   const quizId = params.quizId as string
+  const [loading, setLoading] = useState(true)
 // ... (conteúdo truncado)
         ```
 
@@ -812,11 +981,12 @@ export default function QuizPage() {
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Trophy, ArrowLeft } from 'lucide-react'
+import { Trophy, ArrowLeft, AlertTriangle, Globe, Eye } from 'lucide-react'
 import { Particles } from '@/components/ui/Particles'
+import { Button } from '@/components/ui/button'
 
 interface Result {
   id: string
@@ -833,12 +1003,11 @@ interface Quiz {
 
 export default function RankingPage() {
   const params = useParams()
+  const router = useRouter()
   const quizId = params.quizId as string
   const [results, setResults] = useState<Result[]>([])
   const [quiz, setQuiz] = useState<Quiz | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
 // ... (conteúdo truncado)
           ```
 
@@ -894,8 +1063,10 @@ export function LoginForm() {
 
 import { signOut } from 'next-auth/react'
 import { motion } from 'framer-motion'
-import { LogOut, Menu } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { LogOut, Menu, User, Bell, Search } from 'lucide-react'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 type HeaderProps = {
   user?: {
@@ -906,20 +1077,54 @@ type HeaderProps = {
 }
 
 export function Header({ user, onMenuClick }: HeaderProps) {
-  const handleSignOut = () => {
-    signOut({
-      callbackUrl: '/login', // Specify the redirect URL after signing out
-      redirect: true
-    })
-  }
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const router = useRouter()
+  
+  const handleSignOut = async () => {
+    try {
+      // Limpar localStorage primeiro
+      localStorage.removeItem('isAuthenticated')
+      localStorage.removeItem('manual_auth')
+      localStorage.removeItem('auth_timestamp')
+      
+      // Forçar redirecionamento antes do signOut para evitar problemas
+      await signOut({
+// ... (conteúdo truncado)
+      ```
 
-  return (
-    <header className="bg-white border-b border-gray-200">
-      <div className="h-16 px-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={onMenuClick}>
-            <Menu className="h-5 w-5" />
-          </Button>
+      - 📄 QuizControlPanel.tsx
+      
+```tsx
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { Users, Play, Pause, RefreshCw, Clock } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/Card'
+
+type QuizControlPanelProps = {
+  quizId: string
+}
+
+interface SessionStatus {
+  exists: boolean
+  isActive: boolean
+  startsAt: string | null
+  endsAt: string | null
+  participants: {
+    userId: string | null
+    name: string
+    joined: string
+  }[]
+}
+
+export function QuizControlPanel({ quizId }: QuizControlPanelProps) {
+  const [status, setStatus] = useState<SessionStatus | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [countdown, setCountdown] = useState<number | null>(null)
+  
 // ... (conteúdo truncado)
       ```
 
@@ -931,7 +1136,7 @@ export function Header({ user, onMenuClick }: HeaderProps) {
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Trash2, Upload } from 'lucide-react'
+import { Plus, Trash2, Globe, Info, FileText, Save, X } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/Card'
@@ -943,6 +1148,7 @@ type QuizFormProps = {
     title: string
     description: string
     questions: Question[]
+    isPublished?: boolean
   }
 }
 
@@ -950,12 +1156,11 @@ export function QuizForm({ initialData }: QuizFormProps) {
   const router = useRouter()
   const [title, setTitle] = useState(initialData?.title ?? '')
   const [description, setDescription] = useState(initialData?.description ?? '')
+  const [isPublic, setIsPublic] = useState(initialData?.isPublished ?? false)
   const [questions, setQuestions] = useState<Question[]>(
     initialData?.questions ?? [{
       text: '',
       options: ['', '', '', ''],
-      correctAnswer: 0,
-      order: 0
 // ... (conteúdo truncado)
       ```
 
@@ -967,7 +1172,7 @@ export function QuizForm({ initialData }: QuizFormProps) {
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Edit, BarChart2, Trash2, Eye } from 'lucide-react'
+import { Edit, BarChart2, Trash2,  AlertTriangle, ExternalLink, Globe, Plus, Share2, Lock } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -978,20 +1183,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import type { QuizWithResultCount } from "@/types"
+
+// Definição de tipos com valores padrão
+type Quiz = {
+  id: string
+  title: string
+  description: string
+  isPublished: boolean
+  _count?: {
+    results: number
+  }
+  createdAt: string
+}
 
 export function QuizList() {
-  const [quizzes, setQuizzes] = useState<QuizWithResultCount[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [quizToDelete, setQuizToDelete] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetchQuizzes()
-  }, [])
-
-  const fetchQuizzes = async () => {
 // ... (conteúdo truncado)
       ```
 
@@ -1039,7 +1244,7 @@ export function ResultsTable({ quizId }: ResultsTableProps) {
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { LayoutDashboard, PlusCircle, BarChart2 } from 'lucide-react'
+import { LayoutDashboard, PlusCircle, BarChart2, Settings, HelpCircle, User } from 'lucide-react'
 import { cn } from '@/utils/cn'
 
 const menuItems = [
@@ -1073,34 +1278,34 @@ export function Sidebar() {
 ```tsx
 'use client'
 
-import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import { useQuizStore } from '@/store'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/button'
+import { Clock } from 'lucide-react'
 
 export function QuizScreen() {
-  const { currentQuiz, currentQuestionIndex, answerQuestion } = useQuizStore()
+  const {
+    currentQuiz,
+    currentQuestionIndex,
+    answerQuestion,
+    // playerName,
+    // questionStartTime,
+  } = useQuizStore()
+  const [timeLeft, setTimeLeft] = useState(1000) // Contagem de 1000 a 0
+  const [selectedOption, setSelectedOption] = useState<number | null>(null)
 
-  if (!currentQuiz) return null
+  const currentQuestion = currentQuiz?.questions[currentQuestionIndex]
 
-  const currentQuestion = currentQuiz.questions[currentQuestionIndex]
-  const progress = ((currentQuestionIndex + 1) / currentQuiz.questions.length) * 100
-
-  return (
-    <div className="min-h-screen bg-white p-4 flex items-center justify-center">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-2xl"
-      >
-        <div className="mb-8">
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              className="bg-blue-600 h-2 rounded-full"
-            />
-          </div>
+  // Contagem regressiva
+  useEffect(() => {
+    if (!currentQuestion) return
+    setTimeLeft(1000) // Reinicia para 1000 a cada nova pergunta
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 0) {
+          handleAnswer(selectedOption ?? 0) // Responde automaticamente com 0 se o tempo acabar
 // ... (conteúdo truncado)
       ```
 
@@ -1109,34 +1314,70 @@ export function QuizScreen() {
 ```tsx
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Trophy, BarChart2 } from 'lucide-react'
+import { Trophy } from 'lucide-react'
 import { useQuizStore } from '@/store'
-import { Particles } from '@/components/ui/Particles'
+import { Button } from '@/components/ui/button'
 
 export function ResultsScreen() {
-  const { score, playerName, currentQuiz } = useQuizStore()
-  const [hasBeenSaved, setHasBeenSaved] = useState(false)
-  
-  // Usando ref para controlar se o salvamento já foi iniciado
-  const saveInitiatedRef = useRef(false)
-  
+  const { score, playerName, playerAvatar, currentQuiz } = useQuizStore()
+
   useEffect(() => {
-    let isMounted = true
-    
-    const saveResult = async () => {
-      // Verificações para evitar múltiplos salvamentos
-      if (!currentQuiz || hasBeenSaved || saveInitiatedRef.current) return
+    // Aqui você pode salvar o resultado na API, se desejar
+  }, [])
+
+  if (!currentQuiz) return null
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen bg-white p-4 flex items-center justify-center"
+    >
+      <div className="text-center">
+        <Trophy className="w-16 h-16 mx-auto text-yellow-500 mb-4" />
+        <h1 className="text-3xl font-bold mb-2">Parabéns, {playerName}!</h1>
+        <span className="text-4xl">{playerAvatar}</span>
+        <p className="text-xl mb-6">Sua pontuação: {score}</p>
+        <Link href="/dashboard">
+// ... (conteúdo truncado)
+      ```
+
+      - 📄 WaitingRoom.tsx
       
-      // Marcar que o salvamento foi iniciado antes da requisição
-      saveInitiatedRef.current = true
-      
-      try {
-        // Configurar estado como salvo primeiro para evitar múltiplas tentativas
-        if (isMounted) setHasBeenSaved(true)
-        
+```tsx
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { useQuizStore } from '@/store'
+import { gsap } from 'gsap'
+import { Particles } from '@/components/ui/Particles'
+import { Input } from '@/components/ui/Input'
+import { Button } from '@/components/ui/button'
+import { UserPlus,  Clock } from 'lucide-react'
+
+// Lista de avatares disponíveis
+const avatars = [
+  '🧑‍🚀', '🐱', '🦁', '🐸', '🦄', '🤖', '🐼', '🦊', '🐻', '🐰',
+  '🦝', '🐯', '🐵', '🐙', '🦎', '🐴', '🦜', '🐍', '🦋', '🐳',
+]
+
+export function WaitingRoom() {
+  const {
+    playerName,
+    setPlayerName,
+    // playerAvatar,
+    setPlayerAvatar,
+    currentQuiz,
+    joinSession,
+    checkSessionStatus,
+    // isQuizActive,
+    participants,
+  } = useQuizStore()
+
+  const [selectedAvatarIndex, setSelectedAvatarIndex] = useState<number | null>(null)
 // ... (conteúdo truncado)
       ```
 
@@ -1145,34 +1386,34 @@ export function ResultsScreen() {
 ```tsx
 'use client'
 
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Dna } from 'lucide-react'
 import { useQuizStore } from '@/store'
 import { Particles } from '@/components/ui/Particles'
+import { Input } from '@/components/ui/Input'
+import { Button } from '@/components/ui/button'
 
-type Quiz = {
-  id: string
-  title: string
-  description: string
-  questions: {
-    text: string
-    options: string[]
-    correctAnswer: number
-    order: number
-  }[]
-}
+// Lista de avatares (usando emojis como exemplo; você pode substituir por URLs de imagens)
+const avatars = ['🧑‍🚀', '🐱', '🦁', '🐸', '🦄', '🤖', '🐼', '🦊']
 
-type WelcomeScreenProps = {
-  quiz: Quiz
-}
+export function WelcomeScreen() {
+  const { currentQuiz, playerName, setPlayerName, startQuiz } = useQuizStore()
+  const [selectedAvatar, setSelectedAvatar] = useState('')
+  const [countdown, setCountdown] = useState<number | null>(null)
 
-export function WelcomeScreen({ quiz }: WelcomeScreenProps) {
-  const { setPlayerName, startQuiz, playerName } = useQuizStore()
+  // Escolher avatar aleatório ao montar o componente
+  useEffect(() => {
+    if (!selectedAvatar) {
+      setSelectedAvatar(avatars[Math.floor(Math.random() * avatars.length)])
+    }
+  }, [selectedAvatar])
 
-  return (
-    <div className="relative min-h-screen bg-white overflow-hidden">
-      <Particles />
-      
+  // Iniciar contagem regressiva quando o nome for inserido
+  useEffect(() => {
+    if (playerName.trim() && countdown === null) {
+      setCountdown(5) // 5 segundos para começar automaticamente
+    }
 // ... (conteúdo truncado)
       ```
 
@@ -1476,6 +1717,11 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { connectToDatabase } from "./mongodb";
 import { User } from "@/models";
+import { Model } from "mongoose";
+import { IUser } from "@/models";
+
+// Tipagem explícita para o modelo User
+type UserModel = Model<IUser>;
 
 export const authOptions: NextAuthOptions = {
   // Provedores de autenticação
@@ -1496,47 +1742,6 @@ export const authOptions: NextAuthOptions = {
           // Conecta ao banco de dados
           await connectToDatabase();
 
-          // Busca o usuário no banco de dados
-          const user = await User.findOne({ email: credentials.email });
-
-          // Se o usuário não existir, retorna null
-          if (!user) {
-// ... (conteúdo truncado)
-    ```
-
-    - 📄 db.ts
-    
-```typescript
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient()
-
-async function main() {
-  try {
-    // Tenta criar um usuário de teste
-    const user = await prisma.user.create({
-      data: {
-        name: 'Teste',
-        email: 'teste@teste.com',
-        password: '123456'
-      }
-    })
-    
-    console.log('Conexão bem sucedida!')
-    console.log('Usuário criado:', user)
-
-    // Lista todos os usuários
-    const users = await prisma.user.findMany()
-    console.log('Usuários no banco:', users)
-
-  } catch (error) {
-    console.error('Erro ao conectar:', error)
-  } finally {
-    await prisma.$disconnect()
-  }
-}
-
-main()
 // ... (conteúdo truncado)
     ```
 
@@ -1544,8 +1749,13 @@ main()
     
 ```typescript
 import { connectToDatabase } from "./mongodb";
-import { User } from "@/models";
+// import mongoose, { Model } from "mongoose";
+import { IUser, User } from "@/models";
 import bcrypt from "bcryptjs";
+import { Model } from "mongoose";
+
+// Tipando o modelo User explicitamente
+type UserModel = Model<IUser>;
 
 async function initMongoDB() {
   try {
@@ -1554,25 +1764,20 @@ async function initMongoDB() {
     console.log("Conexão com MongoDB estabelecida com sucesso!");
 
     // Verifica se existe algum usuário
-    const userCount = await User.countDocuments();
-    
+    const userCount = await (User as UserModel).countDocuments();
+
     if (userCount === 0) {
       console.log("Nenhum usuário encontrado. Criando usuário de teste...");
-      
+
       // Cria um usuário de teste
       const hashedPassword = await bcrypt.hash("123456", 10);
-      
-      const testUser = await User.create({
+
+      const testUser = await (User as UserModel).create({
         name: "Usuário Teste",
         email: "teste@exemplo.com",
-        password: hashedPassword
+        password: hashedPassword,
       });
-      
-      console.log("Usuário de teste criado com sucesso:", {
-        id: testUser._id,
-        name: testUser.name,
-        email: testUser.email
-      });
+
 // ... (conteúdo truncado)
     ```
 
@@ -1587,28 +1792,28 @@ if (!MONGODB_URI) {
   throw new Error('Por favor defina a variável de ambiente MONGODB_URI');
 }
 
-/**
- * Variável global para manter a conexão com o MongoDB entre hot reloads no desenvolvimento
- */
-declare global {
-  var mongoose: {
-    conn: typeof mongoose | null;
-    promise: Promise<typeof mongoose> | null;
-  };
+// Interface para nossa cache global
+interface MongooseCache {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
 }
+
+// Cache para conexão
+const globalForMongoose = global as unknown as {
+  mongoose: MongooseCache | undefined;
+};
 
 // Em desenvolvimento, usamos uma variável global para preservar a conexão
 // entre hot reloads, caso contrário, em produção usamos uma conexão normal
-let cached = global.mongoose;
+const cached: MongooseCache = globalForMongoose.mongoose ?? {
+  conn: null,
+  promise: null
+};
 
-if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
+// Inicializa a cache global na primeira execução
+if (!globalForMongoose.mongoose) {
+  globalForMongoose.mongoose = cached;
 }
-
-export async function connectToDatabase() {
-  if (cached.conn) {
-    return cached.conn;
-  }
 // ... (conteúdo truncado)
     ```
 
@@ -1632,29 +1837,36 @@ import { getToken } from 'next-auth/jwt'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  const token = await getToken({ req: request })
+  // Log para diagnóstico
+  console.log('Middleware executado para:', request.nextUrl.pathname)
   
-  // Rotas do dashboard são protegidas
-  if (request.nextUrl.pathname.startsWith('/dashboard') && !token) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  // Tenta obter o token
+  let token: any
+  try {
+    token = await getToken({ 
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    })
+    console.log('Token encontrado:', !!token)
+  } catch (error) {
+    console.error('Erro ao tentar verificar token:', error)
   }
   
-  // Usuários autenticados são redirecionados para o dashboard nas páginas de autenticação
-  if ((request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register') && token) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
+  // URLs completos para redirecionamento
+  const loginUrl = new URL('/login', request.url)
+  const dashboardUrl = new URL('/dashboard', request.url)
   
-  return NextResponse.next()
-}
-
-// Configure o matcher para aplicar somente nas rotas necessárias
-export const config = {
-  matcher: ['/dashboard/:path*', '/login', '/register']
-}
+  // Verificações para rotas específicas
+  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+    if (!token) {
+      console.log('Não autenticado, redirecionando para login')
+      return NextResponse.redirect(loginUrl)
+    }
+// ... (conteúdo truncado)
   ```
 
   - 📁 models/
-    - 📄 index.ts
+    - 📄 index copy.ts
     
 ```typescript
 import mongoose, { Document, Schema } from 'mongoose';
@@ -1690,6 +1902,42 @@ export interface IQuizResult extends Document {
 // ... (conteúdo truncado)
     ```
 
+    - 📄 index.ts
+    
+```typescript
+import mongoose, { Document, Schema } from 'mongoose'
+
+// Interfaces
+export interface IUser extends Document {
+  name: string
+  email: string
+  password: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface IQuestion {
+  text: string
+  options: string[]
+  correctAnswer: number
+  order: number
+}
+
+export interface IQuiz extends Document {
+  title: string
+  description: string
+  questions: IQuestion[]
+  userId: mongoose.Types.ObjectId
+  isPublished: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface IQuizResult extends Document {
+  quizId: mongoose.Types.ObjectId
+// ... (conteúdo truncado)
+    ```
+
   - 📁 providers/
     - 📄 SessionProvider.tsx
     
@@ -1711,6 +1959,8 @@ export default function AuthProvider({
     - 📄 index.ts
     
 ```typescript
+'use client'
+
 import { create } from 'zustand'
 
 type Question = {
@@ -1727,20 +1977,18 @@ type Quiz = {
   questions: Question[]
 }
 
+type Participant = {
+  name: string
+  avatar: string
+  joined: Date
+}
+
 type QuizStore = {
-  currentStep: 'welcome' | 'quiz' | 'results'
+  currentStep: 'waiting' | 'welcome' | 'quiz' | 'results'
   currentQuiz: Quiz | null
   playerName: string
+  playerAvatar: string
   currentQuestionIndex: number
-  score: number
-  selectedAnswers: number[]
-  setPlayerName: (name: string) => void
-  startQuiz: () => void
-  answerQuestion: (answerIndex: number) => void
-  setCurrentQuiz: (quiz: Quiz) => void
-  saveResult: () => Promise<void>
-  resetQuiz: () => void
-}
 // ... (conteúdo truncado)
     ```
 
@@ -1758,6 +2006,8 @@ export type CustomError = {
     - 📄 index.ts
     
 ```typescript
+// src/types/index.ts
+
 export type User = {
   id: string
   name: string
@@ -1782,12 +2032,10 @@ export type Quiz = {
   updatedAt: Date
 }
 
+// Atualizado para incluir tempo
 export type QuizResult = {
   id: string
   quizId: string
-  playerName: string
-  score: number
-  totalQuestions: number
 // ... (conteúdo truncado)
     ```
 
@@ -1814,12 +2062,6 @@ declare module "next-auth" {
     ```
 
   - 📁 utils/
-    - 📄 api.ts
-    
-```typescript
-
-    ```
-
     - 📄 cn.ts
     
 ```typescript

@@ -1,89 +1,63 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { BarChart2, FileText } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { BarChart2 } from 'lucide-react'
 
-type Quiz = {
+interface QuizWithResultCount {
   id: string
   title: string
   description: string
   _count: {
     results: number
   }
-}
-
-type Result = {
-  id: string
-  quizId: string
-  playerName: string
-  score: number
-  totalQuestions: number
   createdAt: string
-  quiz: {
-    title: string
-  }
 }
 
 export default function DashboardResultsPage() {
-  const [quizzes, setQuizzes] = useState<Quiz[]>([])
+  const [quizzes, setQuizzes] = useState<QuizWithResultCount[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedQuiz, setSelectedQuiz] = useState<string | null>(null)
-  const [results, setResults] = useState<Result[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [fetchAttempted, setFetchAttempted] = useState(false)
 
   useEffect(() => {
-    async function fetchQuizzes() {
+    // Evitar múltiplas chamadas
+    if (fetchAttempted) return
+    
+    const fetchQuizzes = async () => {
       try {
-        const response = await fetch('/api/quiz')
-        if (!response.ok) {
-          throw new Error('Erro ao carregar quizzes')
-        }
-        const data = await response.json()
-        const validQuizzes = Array.isArray(data) ? data : []
-        setQuizzes(validQuizzes)
+        setLoading(true)
+        setFetchAttempted(true)
         
-        if (validQuizzes.length > 0) {
-          setSelectedQuiz(validQuizzes[0].id)
+        const response = await fetch('/api/quiz')
+        
+        if (!response.ok) {
+          throw new Error('Falha ao carregar quizzes')
         }
-      } catch (error) {
-        console.error('Erro ao carregar quizzes:', error)
-        setError('Falha ao carregar os quizzes. Tente novamente mais tarde.')
-        setQuizzes([])
+        
+        const data = await response.json()
+        
+        // Ordenar por data de criação (mais recente primeiro)
+        const sortedQuizzes = [...data].sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        
+        setQuizzes(sortedQuizzes)
+      } catch (err: any) {
+        console.error('Erro ao carregar quizzes:', err)
+        setError(err.message || 'Ocorreu um erro ao carregar os quizzes')
       } finally {
         setLoading(false)
       }
     }
-
+    
     fetchQuizzes()
-  }, [])
-
-  useEffect(() => {
-    if (!selectedQuiz) return
-
-    async function fetchResults() {
-      try {
-        const response = await fetch(`/api/quiz/${selectedQuiz}/results`)
-        if (!response.ok) {
-          throw new Error('Erro ao carregar resultados')
-        }
-        const data = await response.json()
-        setResults(Array.isArray(data) ? data : [])
-        setError(null)
-      } catch (error) {
-        console.error('Erro ao carregar resultados:', error)
-        setError('Falha ao carregar os resultados. Tente novamente mais tarde.')
-        setResults([])
-      }
-    }
-
-    fetchResults()
-  }, [selectedQuiz])
+  }, [fetchAttempted])
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex justify-center items-center min-h-[60vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
       </div>
     )
@@ -91,142 +65,77 @@ export default function DashboardResultsPage() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center p-8 bg-red-50 rounded-lg">
-          <p className="text-red-600">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-          >
-            Tentar novamente
-          </button>
+      <div className="bg-red-50 p-4 rounded-lg">
+        <h2 className="text-red-800 font-medium mb-2">Erro</h2>
+        <p className="text-red-700">{error}</p>
+        <button 
+          onClick={() => {
+            setFetchAttempted(false)
+            setError('')
+          }}
+          className="mt-4 text-blue-600 hover:underline"
+        >
+          Tentar novamente
+        </button>
+      </div>
+    )
+  }
+
+  if (quizzes.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold text-gray-800 mb-6">Resultados</h1>
+        
+        <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+          <BarChart2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-xl font-medium text-gray-700 mb-2">Nenhum quiz encontrado</h2>
+          <p className="text-gray-600 mb-6">
+            Você ainda não criou nenhum quiz. Crie seu primeiro quiz para começar a ver resultados.
+          </p>
+          
+          <Link href="/dashboard/quiz/create" className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+            Criar novo quiz
+          </Link>
         </div>
       </div>
     )
   }
 
-  const selectedQuizData = quizzes.find(quiz => quiz.id === selectedQuiz)
-
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">
-          Resultados dos Quizzes
-        </h1>
-        <p className="text-gray-600">
-          Visualize o desempenho dos participantes em cada quiz
+    <div className="max-w-4xl mx-auto">
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">Resultados</h1>
+      
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <p className="text-gray-600 mb-6">
+          Selecione um quiz para ver seus resultados detalhados:
         </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {quizzes.map((quiz, index) => (
+            <motion.div
+              key={quiz.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+            >
+              <Link href={`/dashboard/quiz/${quiz.id}/results`}>
+                <div className="border border-gray-200 rounded-lg p-4 hover:border-blue-500 hover:shadow-md transition-all">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-medium text-gray-900 line-clamp-1">{quiz.title}</h3>
+                    <span className="bg-blue-100 text-blue-800 text-xs font-medium py-1 px-2 rounded">
+                      {quiz._count?.results || 0} {quiz._count?.results === 1 ? 'resposta' : 'respostas'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500 mb-3 line-clamp-2">{quiz.description}</p>
+                  <div className="text-xs text-gray-400">
+                    Criado em {new Date(quiz.createdAt).toLocaleDateString('pt-BR')}
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+          ))}
+        </div>
       </div>
-
-      {quizzes.length === 0 ? (
-        <div className="text-center p-8 bg-gray-50 rounded-lg">
-          <p className="text-gray-600">Nenhum quiz encontrado</p>
-        </div>
-      ) : (
-        <div className="grid md:grid-cols-3 gap-6">
-          {/* Lista de Quizzes */}
-          <div className="md:col-span-1 space-y-4">
-            {quizzes.map((quiz) => (
-              <motion.div
-                key={quiz.id}
-                whileHover={{ scale: 1.02 }}
-                className={`p-4 rounded-lg cursor-pointer transition-all ${
-                  selectedQuiz === quiz.id 
-                    ? 'bg-blue-50 border-blue-200' 
-                    : 'bg-white'
-                } border shadow-sm`}
-                onClick={() => setSelectedQuiz(quiz.id)}
-              >
-                <div className="flex items-center gap-3">
-                  <FileText 
-                    className={`h-5 w-5 ${
-                      selectedQuiz === quiz.id 
-                        ? 'text-blue-600' 
-                        : 'text-gray-400'
-                    }`} 
-                  />
-                  <div>
-                    <h3 className="font-medium text-gray-800">{quiz.title}</h3>
-                    <p className="text-sm text-gray-500">
-                      {quiz._count.results} participações
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Painel de Resultados */}
-          <div className="md:col-span-2">
-            <div className="bg-white rounded-lg shadow">
-              <div className="p-4 border-b flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <BarChart2 className="h-5 w-5 text-blue-600" />
-                  <h2 className="font-semibold text-gray-800">
-                    {selectedQuizData?.title}
-                  </h2>
-                </div>
-                {selectedQuiz && (
-                  <Link 
-                    href={`/quiz/${selectedQuiz}/ranking`} 
-                    target="_blank"
-                    className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
-                  >
-                    <motion.span
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      Ver ranking completo
-                    </motion.span>
-                  </Link>
-                )}
-              </div>
-
-              <div className="divide-y">
-                {results.length > 0 ? (
-                  results.map((result) => (
-                    <motion.div
-                      key={result.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="p-4 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-medium text-gray-800">
-                            {result.playerName}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {new Date(result.createdAt).toLocaleDateString('pt-BR', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-gray-800">
-                            {result.score} / {result.totalQuestions}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {((result.score / result.totalQuestions) * 100).toFixed(1)}%
-                          </p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))
-                ) : (
-                  <div className="p-8 text-center text-gray-500">
-                    Nenhum resultado registrado para este quiz
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

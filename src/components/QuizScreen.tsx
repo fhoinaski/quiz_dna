@@ -62,7 +62,7 @@ export const QuizScreen = () => {
                   key={index}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => answerQuestion(index)}
+                  onClick={() => answerQuestion(index, 0)}
                   className="w-full p-4 text-left bg-gray-50 hover:bg-gray-100 rounded-lg transition-all"
                 >
                   {option}

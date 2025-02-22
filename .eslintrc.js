@@ -16,8 +16,9 @@ module.exports = {
     ],
     plugins: ["@typescript-eslint"], // Adiciona o plugin @typescript-eslint
     rules: {
+    
       "react-hooks/exhaustive-deps": "warn",
-      "@typescript-eslint/no-explicit-any": "warn", // Define como aviso
+      "@typescript-eslint/no-explicit-any": "off", // Define como aviso
       "@typescript-eslint/no-unused-vars": "error", // Define como erro
     },
   };

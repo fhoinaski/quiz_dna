@@ -38,5 +38,5 @@ export function Particles() {
     }
   }, [])
 
-  return <div ref={particlesRef} className="absolute inset-0" />
+  return <div ref={particlesRef} className="" />
 }

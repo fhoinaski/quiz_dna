@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
@@ -49,6 +49,28 @@ export default function DashboardLayout({
     setSidebarOpen(prev => !prev)
   }
   
+  // Função de logout corrigida
+  const handleLogout = async () => {
+    try {
+      // Limpar localStorage primeiro
+      localStorage.removeItem('isAuthenticated')
+      localStorage.removeItem('manual_auth')
+      localStorage.removeItem('auth_timestamp')
+      
+      // Fazer logout via NextAuth
+      await signOut({ 
+        redirect: false 
+      })
+      
+      // Forçar redirecionamento completo
+      window.location.href = '/login'
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error)
+      // Redirecionar mesmo em caso de erro
+      window.location.href = '/login'
+    }
+  }
+  
   // Mostrar loader enquanto verifica autenticação
   if (isLoading || status === 'loading') {
     return (
@@ -76,11 +98,7 @@ export default function DashboardLayout({
               {session?.user?.email || 'Usuário'}
             </span>
             <button 
-              onClick={() => {
-                localStorage.removeItem('isAuthenticated')
-                localStorage.removeItem('manual_auth')
-                router.push('/login')
-              }}
+              onClick={handleLogout}
               className="px-3 py-1.5 text-sm bg-red-50 text-red-600 rounded-md hover:bg-red-100"
             >
               Sair

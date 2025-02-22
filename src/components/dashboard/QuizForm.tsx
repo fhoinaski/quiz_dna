@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Trash2, Upload } from 'lucide-react'
+import { Plus, Trash2, Globe, Info, FileText, Save, X } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/Card'
@@ -15,6 +15,7 @@ type QuizFormProps = {
     title: string
     description: string
     questions: Question[]
+    isPublished?: boolean
   }
 }
 
@@ -22,6 +23,7 @@ export function QuizForm({ initialData }: QuizFormProps) {
   const router = useRouter()
   const [title, setTitle] = useState(initialData?.title ?? '')
   const [description, setDescription] = useState(initialData?.description ?? '')
+  const [isPublic, setIsPublic] = useState(initialData?.isPublished ?? false)
   const [questions, setQuestions] = useState<Question[]>(
     initialData?.questions ?? [{
       text: '',
@@ -31,237 +33,339 @@ export function QuizForm({ initialData }: QuizFormProps) {
     }]
   )
   const [loading, setLoading] = useState(false)
-
-  // Função para processar texto direto
-  const processText = (text: string) => {
-    try {
-      // Divide o texto em linhas e remove espaços em branco extras
-      const lines = text.split('\n').map(line => line.trim()).filter(line => line)
-      
-      const newQuestions: Question[] = []
-      let currentQuestion: Partial<Question> = {}
-      let currentOptions: string[] = []
-      
-      lines.forEach(line => {
-        // Verifica se é uma nova questão (começa com número seguido de ponto)
-        if (/^\d+\./.test(line)) {
-          // Se já temos uma questão em processamento, salvamos ela
-          if (currentQuestion.text && currentOptions.length > 0) {
-            newQuestions.push({
-              text: currentQuestion.text,
-              options: currentOptions,
-              correctAnswer: currentQuestion.correctAnswer ?? 0,
-              order: newQuestions.length
-            })
-          }
-          
-          // Extrai o texto da questão (remove números e asteriscos)
-          const questionText = line.replace(/^\d+\.\s*\*\*|\*\*$/g, '').trim()
-          currentQuestion = { text: questionText }
-          currentOptions = []
-        }
-        // Verifica se é uma opção (começa com hífen)
-        else if (line.startsWith('-')) {
-          const option = line.replace(/^-\s*/, '').trim()
-          // Remove a indicação "(Correta)" e marca como resposta correta se necessário
-          if (option.includes('(Correta)')) {
-            currentOptions.push(option.replace('(Correta)', '').trim())
-            currentQuestion.correctAnswer = currentOptions.length - 1
-          } else {
-            currentOptions.push(option)
-          }
-        }
-      })
-      
-      // Adiciona a última questão
-      if (currentQuestion.text && currentOptions.length > 0) {
-        newQuestions.push({
-          text: currentQuestion.text,
-          options: currentOptions,
-          correctAnswer: currentQuestion.correctAnswer ?? 0,
-          order: newQuestions.length
-        })
-      }
-
-      if (newQuestions.length > 0) {
-        setQuestions(newQuestions)
-      }
-    } catch (error) {
-      console.error('Erro ao processar texto:', error)
-      alert('Erro ao processar o texto. Verifique o formato.')
-    }
-  }
-
-  // Função para carregar arquivo de texto
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const content = e.target?.result as string
-      processText(content)
-    }
-    reader.readAsText(file)
-  }
-
-  // Função para processar texto colado
-  const handlePaste = (event: React.ClipboardEvent) => {
-    const text = event.clipboardData.getData('text')
-    processText(text)
-    event.preventDefault()
-  }
+  const [error, setError] = useState('')
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importText, setImportText] = useState('')
+  const [importFormat, setImportFormat] = useState<'simple' | 'structured'>('simple')
+  const [importPreview, setImportPreview] = useState<Question[]>([])
 
   const addQuestion = () => {
+    const newOrder = questions.length
     setQuestions([
       ...questions,
       {
         text: '',
         options: ['', '', '', ''],
         correctAnswer: 0,
-        order: questions.length
+        order: newOrder
       }
     ])
   }
 
   const removeQuestion = (index: number) => {
-    if (questions.length > 1) {
-      setQuestions(questions.filter((_, i) => i !== index))
-    }
+    const newQuestions = [...questions]
+    newQuestions.splice(index, 1)
+
+    const reorderedQuestions = newQuestions.map((q, idx) => ({
+      ...q,
+      order: idx
+    }))
+
+    setQuestions(reorderedQuestions)
   }
 
-  const updateQuestion = (index: number, field: keyof Question, value: string | number | string[]) => {
-    setQuestions(questions.map((q, i) => 
-      i === index ? { ...q, [field]: value } : q
-    ))
+  const updateQuestion = (index: number, field: string, value: string | number) => {
+    const newQuestions = [...questions]
+    newQuestions[index] = {
+      ...newQuestions[index],
+      [field]: value
+    }
+    setQuestions(newQuestions)
+  }
+
+  const updateOption = (questionIndex: number, optionIndex: number, value: string) => {
+    const newQuestions = [...questions]
+    newQuestions[questionIndex].options[optionIndex] = value
+    setQuestions(newQuestions)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError('')
 
     try {
-      const endpoint = initialData?.id 
+      if (!title.trim()) {
+        throw new Error('Título é obrigatório')
+      }
+
+      if (!description.trim()) {
+        throw new Error('Descrição é obrigatória')
+      }
+
+      if (questions.length === 0) {
+        throw new Error('Adicione pelo menos uma questão')
+      }
+
+      for (const [index, question] of questions.entries()) {
+        if (!question.text.trim()) {
+          throw new Error(`Questão ${index + 1}: O texto da pergunta é obrigatório`)
+        }
+
+        if (question.options.some(option => !option.trim())) {
+          throw new Error(`Questão ${index + 1}: Todas as opções devem ser preenchidas`)
+        }
+
+        if (question.correctAnswer === undefined || question.correctAnswer < 0 || question.correctAnswer >= question.options.length) {
+          throw new Error(`Questão ${index + 1}: Selecione uma resposta correta válida`)
+        }
+      }
+
+      const quizData = {
+        title,
+        description,
+        questions: questions.map((q, index) => ({
+          ...q,
+          order: index
+        })),
+        isPublished: isPublic
+      }
+
+      const url = initialData?.id
         ? `/api/quiz/${initialData.id}`
         : '/api/quiz'
-      
-      const response = await fetch(endpoint, {
-        method: initialData?.id ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          description,
-          questions
-        })
+
+      const method = initialData?.id ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(quizData)
       })
 
-      if (response.ok) {
-        router.push('/dashboard')
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Erro ao salvar quiz')
       }
-    } catch (error) {
-      console.error('Erro ao salvar quiz:', error)
+
+      router.push('/dashboard')
+
+    } catch (err: any) {
+      console.error('Erro ao salvar quiz:', err)
+      setError(err.message || 'Ocorreu um erro ao salvar o quiz')
     } finally {
       setLoading(false)
     }
   }
 
+  const processImportedText = () => {
+    try {
+      let parsedQuestions: Question[] = []
+
+      if (importFormat === 'simple') {
+        const lines = importText.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+        let currentQuestion: Partial<Question> | null = null
+
+        for (const line of lines) {
+          if (line.startsWith('P:')) {
+            if (currentQuestion?.text && currentQuestion.options?.length) {
+              parsedQuestions.push({
+                text: currentQuestion.text,
+                options: currentQuestion.options,
+                correctAnswer: currentQuestion.correctAnswer || 0,
+                order: parsedQuestions.length
+              })
+            }
+
+            currentQuestion = {
+              text: line.substring(2).trim(),
+              options: [],
+              correctAnswer: 0
+            }
+          } else if (line.startsWith('R:') && currentQuestion) {
+            const optionText = line.substring(2).trim()
+
+            if (optionText.startsWith('*')) {
+              currentQuestion.correctAnswer = currentQuestion.options?.length || 0
+              currentQuestion.options?.push(optionText.substring(1).trim())
+            } else {
+              currentQuestion.options?.push(optionText)
+            }
+          }
+        }
+
+        if (currentQuestion?.text && currentQuestion.options?.length) {
+          parsedQuestions.push({
+            text: currentQuestion.text,
+            options: currentQuestion.options,
+            correctAnswer: currentQuestion.correctAnswer || 0,
+            order: parsedQuestions.length
+          })
+        }
+      } else {
+        try {
+          const jsonData = JSON.parse(importText)
+
+          if (Array.isArray(jsonData)) {
+            parsedQuestions = jsonData.map((q, index) => ({
+              text: q.text || '',
+              options: q.options || ['', '', '', ''],
+              correctAnswer: q.correctAnswer || 0,
+              order: index
+            }))
+          } else {
+            throw new Error('O JSON deve ser um array de questões')
+          }
+        } catch {
+          throw new Error('Erro ao processar JSON: Formato inválido')
+        }
+      }
+
+      if (parsedQuestions.length === 0) {
+        throw new Error('Nenhuma questão encontrada no texto')
+      }
+
+      setImportPreview(parsedQuestions)
+
+    } catch (err: any) {
+      console.error('Erro ao processar texto:', err)
+      setError(err.message || 'Formato de texto inválido')
+    }
+  }
+
+  const applyImport = () => {
+    setQuestions(importPreview)
+    setShowImportModal(false)
+    setImportText('')
+    setImportPreview([])
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
-      <Card className="mb-8">
-        <div className="space-y-6">
-          <Input
-            label="Título do Quiz"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
-
-          <Input
-            label="Descrição"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            required
-          />
-
-          <div className="space-y-4">
-            <textarea
-              className="w-full h-32 p-2 border rounded"
-              placeholder="Cole aqui o texto das questões..."
-              onPaste={handlePaste}
+    <div>
+      <form onSubmit={handleSubmit}>
+        <Card className="mb-6">
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Título
+            </label>
+            <Input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Digite o título do quiz"
+              className="w-full"
             />
-            
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => document.getElementById('file-upload')?.click()}
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Carregar Arquivo
-              </Button>
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Descrição
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Descreva o objetivo deste quiz"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              rows={3}
+            />
+          </div>
+
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center space-x-2 mb-2">
               <input
-                id="file-upload"
-                type="file"
-                accept=".txt"
-                onChange={handleFileUpload}
-                className="hidden"
+                type="checkbox"
+                id="isPublic"
+                checked={isPublic}
+                onChange={() => setIsPublic(!isPublic)}
+                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
+              <label htmlFor="isPublic" className="flex items-center text-sm font-medium text-gray-700">
+                <Globe className="w-5 h-5 mr-1 text-blue-500" />
+                <span className="text-base font-semibold">Tornar este quiz público</span>
+              </label>
+            </div>
+
+            <div className="ml-7 text-sm text-gray-600 flex items-start">
+              <Info className="w-4 h-4 mr-1 text-blue-500 mt-0.5 flex-shrink-0" />
+              <p>
+                Marque esta opção para permitir que qualquer pessoa acesse o quiz sem precisar de login.
+                Os quizzes públicos podem ser compartilhados e têm uma página de ranking acessível.
+              </p>
             </div>
           </div>
-        </div>
-      </Card>
+        </Card>
 
-      <div className="space-y-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium text-gray-800">Perguntas</h3>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowImportModal(true)}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Importar Perguntas
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addQuestion}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Adicionar Pergunta
+            </Button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 text-red-700 p-3 rounded-md mb-4">
+            {error}
+          </div>
+        )}
+
         <AnimatePresence>
-          {questions.map((question, index) => (
+          {questions.map((question, questionIndex) => (
             <motion.div
-              key={index}
+              key={questionIndex}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-6"
             >
               <Card>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">
-                    Questão {index + 1}
-                  </h3>
-                  {questions.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => removeQuestion(index)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  )}
+                <div className="flex justify-between items-start mb-4">
+                  <h4 className="font-medium text-gray-800">Pergunta {questionIndex + 1}</h4>
+                  <button
+                    type="button"
+                    onClick={() => removeQuestion(questionIndex)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
                 </div>
 
-                <div className="space-y-4">
+                <div className="mb-4">
                   <Input
-                    label="Pergunta"
+                    type="text"
                     value={question.text}
-                    onChange={(e) => updateQuestion(index, 'text', e.target.value)}
-                    required
+                    onChange={(e) => updateQuestion(questionIndex, 'text', e.target.value)}
+                    placeholder="Digite a pergunta"
+                    className="w-full"
                   />
+                </div>
+
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Opções</p>
 
                   {question.options.map((option, optionIndex) => (
-                    <div key={optionIndex} className="flex gap-3 items-center">
+                    <div key={optionIndex} className="flex items-center mb-2">
                       <input
                         type="radio"
-                        name={`correct-${index}`}
+                        name={`question-${questionIndex}-correct`}
                         checked={question.correctAnswer === optionIndex}
-                        onChange={() => updateQuestion(index, 'correctAnswer', optionIndex)}
-                        required
+                        onChange={() => updateQuestion(questionIndex, 'correctAnswer', optionIndex)}
+                        className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500"
                       />
                       <Input
+                        type="text"
                         value={option}
-                        onChange={(e) => {
-                          const newOptions = [...question.options]
-                          newOptions[optionIndex] = e.target.value
-                          updateQuestion(index, 'options', newOptions)
-                        }}
+                        onChange={(e) => updateOption(questionIndex, optionIndex, e.target.value)}
                         placeholder={`Opção ${optionIndex + 1}`}
-                        required
+                        className="flex-1"
                       />
                     </div>
                   ))}
@@ -271,24 +375,195 @@ export function QuizForm({ initialData }: QuizFormProps) {
           ))}
         </AnimatePresence>
 
-        <div className="flex justify-between">
+        {questions.length === 0 && (
+          <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+            <p className="text-gray-500">Nenhuma pergunta adicionada. Clique em &quot;Adicionar Pergunta&quot; ou &quot;Importar Perguntas&quot;.</p>
+          </div>
+        )}
+
+        <div className="mt-6 flex justify-end gap-3">
           <Button
             type="button"
-            variant="secondary"
-            onClick={addQuestion}
+            variant="outline"
+            onClick={() => router.push('/dashboard')}
+            disabled={loading}
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar Questão
+            Cancelar
           </Button>
 
           <Button
             type="submit"
             disabled={loading}
           >
-            {loading ? 'Salvando...' : 'Salvar Quiz'}
+            {loading ? (
+              <span className="flex items-center">
+                <span className="animate-spin h-4 w-4 mr-2 border-2 border-t-transparent border-white rounded-full" />
+                Salvando...
+              </span>
+            ) : (
+              <span className="flex items-center">
+                <Save className="w-4 h-4 mr-2" />
+                Salvar Quiz
+              </span>
+            )}
           </Button>
         </div>
-      </div>
-    </form>
+      </form>
+
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-auto"
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-800">Importar Perguntas</h3>
+                <button
+                  onClick={() => setShowImportModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="mb-4">
+                <div className="flex gap-3 mb-3">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="importFormat"
+                      checked={importFormat === 'simple'}
+                      onChange={() => setImportFormat('simple')}
+                      className="mr-2"
+                    />
+                    <span>Formato Simples</span>
+                  </label>
+
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="importFormat"
+                      checked={importFormat === 'structured'}
+                      onChange={() => setImportFormat('structured')}
+                      className="mr-2"
+                    />
+                    <span>JSON</span>
+                  </label>
+                </div>
+
+                <div className="bg-gray-50 p-3 rounded-md text-sm mb-3">
+                  {importFormat === 'simple' ? (
+                    <div>
+                      <p className="font-medium mb-1">Instruções:</p>
+                      <p>Use o seguinte formato:</p>
+                      <pre className="bg-gray-100 p-2 rounded my-2 overflow-x-auto">
+                        P: Qual a capital do Brasil?{'\n'}
+                        R: Rio de Janeiro{'\n'}
+                        R: *Brasília{'\n'}
+                        R: São Paulo{'\n'}
+                        R: Belo Horizonte
+                      </pre>
+                      <ul className="list-disc pl-5 text-gray-600">
+                        <li>Cada pergunta começa com &quot;P:&quot;</li>
+                        <li>Cada resposta começa com &quot;R:&quot;</li>
+                        <li>Marque a resposta correta com um asterisco (*)</li>
+                      </ul>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="font-medium mb-1">Formato JSON:</p>
+                      <pre className="bg-gray-100 p-2 rounded my-2 overflow-x-auto">
+                        {JSON.stringify([
+                          {
+                            text: "Qual a capital do Brasil?",
+                            options: ["Rio de Janeiro", "Brasília", "São Paulo", "Belo Horizonte"],
+                            correctAnswer: 1
+                          }
+                        ], null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+
+                <textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  placeholder={importFormat === 'simple'
+                    ? "Cole seu texto aqui no formato especificado..."
+                    : "Cole seu JSON aqui..."}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  rows={8}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 mb-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setImportText('')
+                    setImportPreview([])
+                  }}
+                  disabled={!importText}
+                >
+                  Limpar
+                </Button>
+                <Button
+                  type="button"
+                  onClick={processImportedText}
+                  disabled={!importText}
+                >
+                  Visualizar
+                </Button>
+              </div>
+
+              {error && (
+                <div className="bg-red-50 text-red-700 p-3 rounded-md mb-4">
+                  {error}
+                </div>
+              )}
+
+              {importPreview.length > 0 && (
+                <div>
+                  <h4 className="font-medium text-gray-800 mb-2">Prévia ({importPreview.length} perguntas):</h4>
+                  <div className="bg-gray-50 p-3 rounded-md max-h-60 overflow-y-auto">
+                    {importPreview.map((q, idx) => (
+                      <div key={idx} className="mb-3 pb-3 border-b border-gray-200 last:border-0">
+                        <p className="font-medium">{idx + 1}. {q.text}</p>
+                        <ul className="mt-1 pl-6">
+                          {q.options.map((option, optIdx) => (
+                            <li key={optIdx} className={optIdx === q.correctAnswer ? 'text-green-600 font-medium' : ''}>
+                              {optIdx === q.correctAnswer ? '✓ ' : ''}{option}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowImportModal(false)}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={applyImport}
+                    >
+                      Importar {importPreview.length} Perguntas
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </div>
   )
 }

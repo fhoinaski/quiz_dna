@@ -1,122 +1,213 @@
+// src/app/api/quiz/[quizId]/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
 import mongoose, { Model } from "mongoose";
-import { IQuiz, IQuizResult, Quiz, QuizResult } from "@/models";
+import { IQuiz, Quiz } from "@/models";
 
-// Interface para os parâmetros da rota
-interface RouteParams {
-  params: { quizId: string };
-}
-
-// Tipando os modelos explicitamente
+// Tipando o modelo Quiz explicitamente
 type QuizModel = Model<IQuiz>;
-type QuizResultModel = Model<IQuizResult>;
 
-// Helper function para validar o quizId
-const validateQuizId = async (quizId: string): Promise<IQuiz> => {
-  if (!mongoose.Types.ObjectId.isValid(quizId)) {
-    throw new Error("ID de quiz inválido");
-  }
-
-  await connectToDatabase();
-  // Ajuste na chamada ao findById para garantir tipagem correta
-  const quiz = await (Quiz as QuizModel).findById(quizId).exec() as IQuiz | null;
-  if (!quiz) {
-    throw new Error("Quiz não encontrado");
-  }
-  return quiz;
-};
-
-// Helper function para validar a sessão
-const validateSession = async () => {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    throw new Error("Não autorizado");
-  }
-  return session;
-};
-
-export async function GET(request: NextRequest, { params }: RouteParams) {
+// GET - Obter quiz por ID
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ quizId: string }> }
+) {
   try {
-    const { quizId } = params;
-
-    // Valida a sessão e o acesso
-    const session = await validateSession();
-
-    // Valida o quiz
-    const quiz = await validateQuizId(quizId);
-
-    // Verifica se o usuário é o dono do quiz
-    if (quiz.userId.toString() !== session.user.id) {
-      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // Busca resultados para o quiz específico
-    const results = await (QuizResult as QuizResultModel)
-      .find({ quizId: new mongoose.Types.ObjectId(quizId) })
-      .sort({ createdAt: -1 })
+    // Aguardar os parâmetros
+    const params = await context.params;
+    const { quizId } = params;
+
+    // Verificar se o ID é válido
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+      return NextResponse.json(
+        { error: "ID de quiz inválido" },
+        { status: 400 }
+      );
+    }
+
+    // Conecta ao banco de dados
+    await connectToDatabase();
+
+    // Buscar o quiz e verificar se o usuário tem permissão
+    const quiz = await (Quiz as QuizModel)
+      .findOne({
+        _id: quizId,
+        userId: session.user.id,
+      })
       .exec();
 
-    // Mapeia os resultados para o formato desejado
-    const formattedResults = results.map((result) => ({
-      id: result._id.toString(),
-      playerName: result.playerName,
-      score: result.score,
-      totalQuestions: result.totalQuestions,
-      createdAt: result.createdAt,
-    }));
+    if (!quiz) {
+      return NextResponse.json(
+        { error: "Quiz não encontrado ou não autorizado" },
+        { status: 404 }
+      );
+    }
 
-    return NextResponse.json(formattedResults, { status: 200 });
+    // Transformar o documento do Mongoose em um objeto simples
+    const quizData = {
+      id: quiz._id.toString(),
+      title: quiz.title,
+      description: quiz.description,
+      questions: quiz.questions,
+      isPublished: quiz.isPublished,
+      userId: quiz.userId.toString(),
+      createdAt: quiz.createdAt,
+      updatedAt: quiz.updatedAt
+    };
+
+    return NextResponse.json(quizData);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Erro desconhecido";
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error(`Erro ao obter quiz: ${error}`);
+    return NextResponse.json(
+      { error: "Erro interno do servidor" },
+      { status: 500 }
+    );
   }
 }
 
-export async function POST(request: NextRequest, { params }: RouteParams) {
+// PUT - Atualizar quiz existente
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ quizId: string }> }
+) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+
+    // Aguardar os parâmetros
+    const params = await context.params;
     const { quizId } = params;
 
-    // Valida o quiz
-    await validateQuizId(quizId);
+    // Verificar se o ID é válido
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+      return NextResponse.json(
+        { error: "ID de quiz inválido" },
+        { status: 400 }
+      );
+    }
 
-    // Extrai dados do corpo da requisição
     const body = await request.json();
 
-    // Valida os dados necessários
-    if (
-      !body.playerName ||
-      typeof body.score !== "number" ||
-      typeof body.totalQuestions !== "number"
-    ) {
+    // Validação básica dos campos obrigatórios
+    if (!body.title || !body.description || !body.questions) {
       return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
     }
 
     // Conecta ao banco de dados
     await connectToDatabase();
 
-    // Cria o resultado
-    const result = await (QuizResult as QuizResultModel).create({
-      quizId: new mongoose.Types.ObjectId(quizId),
-      playerName: body.playerName,
-      score: body.score,
-      totalQuestions: body.totalQuestions,
-    });
+    // Verificar se o quiz existe e pertence ao usuário
+    const existingQuiz = await (Quiz as QuizModel)
+      .findOne({
+        _id: quizId,
+        userId: session.user.id,
+      })
+      .exec();
 
-    // Formata o resultado criado
-    const formattedResult = {
-      id: result._id.toString(),
-      playerName: result.playerName,
-      score: result.score,
-      totalQuestions: result.totalQuestions,
-      createdAt: result.createdAt,
+    if (!existingQuiz) {
+      return NextResponse.json(
+        { error: "Quiz não encontrado ou não autorizado" },
+        { status: 404 }
+      );
+    }
+
+    // Atualiza o quiz
+    const updatedQuiz = await (Quiz as QuizModel).findByIdAndUpdate(
+      quizId,
+      {
+        title: body.title,
+        description: body.description,
+        questions: body.questions,
+        isPublished: body.isPublished || false, // Garantir que o campo isPublished seja atualizado
+      },
+      { new: true } // Retorna o documento atualizado
+    );
+
+    // Transformar o documento do Mongoose em um objeto simples
+    const quizData = {
+      id: updatedQuiz._id.toString(),
+      title: updatedQuiz.title,
+      description: updatedQuiz.description,
+      questions: updatedQuiz.questions,
+      isPublished: updatedQuiz.isPublished,
+      userId: updatedQuiz.userId.toString(),
+      createdAt: updatedQuiz.createdAt,
+      updatedAt: updatedQuiz.updatedAt
     };
 
-    return NextResponse.json(formattedResult, { status: 201 });
+    return NextResponse.json(quizData);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Erro desconhecido";
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error(`Erro ao atualizar quiz: ${error}`);
+    return NextResponse.json(
+      { error: "Erro interno do servidor" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Excluir quiz existente
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ quizId: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+
+    // Aguardar os parâmetros
+    const params = await context.params;
+    const { quizId } = params;
+
+    // Verificar se o ID é válido
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+      return NextResponse.json(
+        { error: "ID de quiz inválido" },
+        { status: 400 }
+      );
+    }
+
+    // Conecta ao banco de dados
+    await connectToDatabase();
+
+    // Verificar se o quiz existe e pertence ao usuário
+    const existingQuiz = await (Quiz as QuizModel)
+      .findOne({
+        _id: quizId,
+        userId: session.user.id,
+      })
+      .exec();
+
+    if (!existingQuiz) {
+      return NextResponse.json(
+        { error: "Quiz não encontrado ou não autorizado" },
+        { status: 404 }
+      );
+    }
+
+    // Excluir o quiz
+    await (Quiz as QuizModel).findByIdAndDelete(quizId);
+
+    // Também poderia excluir resultados associados aqui, se necessário
+    // await QuizResult.deleteMany({ quizId });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error(`Erro ao excluir quiz: ${error}`);
+    return NextResponse.json(
+      { error: "Erro interno do servidor" },
+      { status: 500 }
+    );
   }
 }
