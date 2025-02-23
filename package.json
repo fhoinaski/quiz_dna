@@ -25,7 +25,8 @@
     "shadcn-ui": "^0.9.4",
     "tailwind-merge": "^2.2.0",
     "tailwindcss-animate": "^1.0.7",
-    "zustand": "^4.5.0"
+    "zustand": "^4.5.0",
+    "socket.io": "^4.7.5"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

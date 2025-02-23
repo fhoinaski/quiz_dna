@@ -1,91 +1,146 @@
+// src/components/quiz/WelcomeScreen.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { motion} from 'framer-motion'
 import { Dna } from 'lucide-react'
 import { useQuizStore } from '@/store'
-import { Particles } from '@/components/ui/Particles'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/Card'
+import gsap from 'gsap'
 
-// Lista de avatares (usando emojis como exemplo; você pode substituir por URLs de imagens)
-const avatars = ['🧑‍🚀', '🐱', '🦁', '🐸', '🦄', '🤖', '🐼', '🦊']
+const avatars = ['🧑‍🚀', '🦸‍♂️', '🦹‍♀️', '🧙‍♂️', '🧝‍♀️', '🦊', '🐉', '🦄']
 
 export function WelcomeScreen() {
-  const { currentQuiz, playerName, setPlayerName, startQuiz } = useQuizStore()
-  const [selectedAvatar, setSelectedAvatar] = useState('')
-  const [countdown, setCountdown] = useState<number | null>(null)
+  const [selectedAvatar, setSelectedAvatar] = useState<string>('')
+  const [playerNameInput, setPlayerNameInput] = useState<string>('')
+  const [error, setError] = useState<string>('')
+  const particlesRef = useRef<HTMLDivElement>(null)
+  const { currentQuiz, joinSession, setPlayerName, setPlayerAvatar } = useQuizStore()
+  const [isMobile, setIsMobile] = useState<boolean>(false)
 
-  // Escolher avatar aleatório ao montar o componente
+  // Detectar dispositivo móvel
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  // Seleção inicial de avatar
   useEffect(() => {
     if (!selectedAvatar) {
       setSelectedAvatar(avatars[Math.floor(Math.random() * avatars.length)])
     }
   }, [selectedAvatar])
 
-  // Iniciar contagem regressiva quando o nome for inserido
-  useEffect(() => {
-    if (playerName.trim() && countdown === null) {
-      setCountdown(5) // 5 segundos para começar automaticamente
-    }
-  }, [playerName, countdown])
+  // Configuração de partículas otimizada
+  const setupParticles = useCallback(() => {
+    if (!particlesRef.current || typeof window === 'undefined') return
 
-  // Lógica da contagem regressiva
+    const particleCount = isMobile ? 20 : 50
+    const particles = Array.from({ length: particleCount }).map(() => {
+      const particle = document.createElement('div')
+      particle.className = 'absolute w-2 h-2 bg-blue-600 rounded-full opacity-50'
+      return particle
+    })
+
+    particles.forEach(particle => {
+      particlesRef.current?.appendChild(particle)
+      gsap.set(particle, {
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+      })
+      gsap.to(particle, {
+        duration: 2 + Math.random() * 2,
+        x: `+=${Math.random() * 100 - 50}`,
+        y: `+=${Math.random() * 100 - 50}`,
+        opacity: 0,
+        repeat: -1,
+        yoyo: true,
+        ease: 'power1.inOut',
+      })
+    })
+
+    return () => particles.forEach(p => p.remove())
+  }, [isMobile])
+
   useEffect(() => {
-    if (countdown === null || countdown <= 0) {
-      if (countdown === 0 && playerName.trim()) startQuiz()
+    const cleanup = setupParticles()
+    return cleanup
+  }, [setupParticles])
+
+  const handleJoin = async () => {
+    if (!playerNameInput.trim()) {
+      setError('Por favor, insira um nome')
       return
     }
-    const timer = setInterval(() => {
-      setCountdown((prev) => (prev !== null ? prev - 1 : null))
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [countdown, playerName, startQuiz])
+    if (!currentQuiz?.id) {
+      setError('Quiz não encontrado')
+      return
+    }
 
-  if (!currentQuiz) return null
+    try {
+      setPlayerName(playerNameInput)
+      setPlayerAvatar(selectedAvatar)
+      await joinSession(currentQuiz.id, playerNameInput, selectedAvatar)
+    } catch (err) {
+      setError('Erro ao entrar na sessão. Tente novamente.')
+      console.error('Join session error:', err)
+    }
+  }
 
   return (
-    <div className="relative min-h-screen bg-white overflow-hidden">
-      <Particles />
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="max-w-md mx-auto mt-20 p-6 bg-white rounded-lg shadow-lg text-center"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative w-full max-w-md"
       >
-        <Dna className="w-12 h-12 mx-auto mb-4 text-blue-600" />
-        <h1 className="text-2xl font-bold mb-4">{currentQuiz.title}</h1>
-        <p className="text-gray-600 mb-6">{currentQuiz.description}</p>
+        <div ref={particlesRef} className="absolute inset-0 pointer-events-none" />
+        <Card className="relative z-10">
+          <div className="p-6 sm:p-8">
+            <div className="flex justify-center mb-6">
+              <Dna className="w-12 h-12 text-blue-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-center mb-6">Bem-vindo ao Quiz</h1>
+            
+            <Input
+              label="Seu Nome"
+              value={playerNameInput}
+              onChange={(e) => setPlayerNameInput(e.target.value)}
+              placeholder="Digite seu nome"
+              className="mb-4"
+            />
+            
+            <div className="mb-6">
+              <p className="text-sm font-medium mb-2">Escolha seu avatar:</p>
+              <div className="grid grid-cols-4 gap-2 sm:gap-4">
+                {avatars.map((avatar) => (
+                  <motion.button
+                    key={avatar}
+                    onClick={() => setSelectedAvatar(avatar)}
+                    className={`text-2xl p-2 rounded-full ${
+                      selectedAvatar === avatar ? 'bg-blue-100 border-2 border-blue-500' : 'bg-gray-100'
+                    }`}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {avatar}
+                  </motion.button>
+                ))}
+              </div>
+            </div>
 
-        <div className="flex items-center justify-center mb-4">
-          <span className="text-4xl mr-4">{selectedAvatar}</span>
-          <Input
-            placeholder="Digite seu nome"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            className="max-w-xs"
-          />
-        </div>
-
-        {countdown !== null && (
-          <motion.p
-            initial={{ scale: 1 }}
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ repeat: Infinity, duration: 1 }}
-            className="text-xl font-semibold text-blue-600"
-          >
-            O quiz começa em {countdown}...
-          </motion.p>
-        )}
-
-        <Button
-          onClick={() => {
-            if (playerName.trim()) startQuiz()
-          }}
-          disabled={!playerName.trim()}
-          className="mt-4"
-        >
-          Pular Contagem
-        </Button>
+            {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
+            
+            <Button onClick={handleJoin} className="w-full">
+              Entrar no Quiz
+            </Button>
+          </div>
+        </Card>
       </motion.div>
     </div>
   )

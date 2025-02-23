@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { LayoutDashboard, PlusCircle, BarChart2, Settings, HelpCircle, User } from 'lucide-react'
+import { LayoutDashboard, PlusCircle, BarChart2,HelpCircle, User } from 'lucide-react'
 import { cn } from '@/utils/cn'
 
 const menuItems = [
@@ -74,13 +74,7 @@ export function Sidebar() {
             SUPORTE
           </h2>
           <nav className="mt-3 space-y-1">
-            <Link
-              href="/dashboard/settings"
-              className="flex items-center px-3 py-2.5 text-sm font-medium text-gray-700 rounded-md hover:text-blue-600 hover:bg-gray-50 group"
-            >
-              <Settings className="mr-3 flex-shrink-0 h-5 w-5 text-gray-400 group-hover:text-blue-500" />
-              <span className="truncate">Configurações</span>
-            </Link>
+        
             <Link
               href="/dashboard/help"
               className="flex items-center px-3 py-2.5 text-sm font-medium text-gray-700 rounded-md hover:text-blue-600 hover:bg-gray-50 group"
@@ -99,8 +93,10 @@ export function Sidebar() {
             <User size={16} className="text-blue-700" />
           </div>
           <div className="ml-3">
+            <Link href="/dashboard/profile">
             <p className="text-sm font-medium text-gray-700 truncate">Sua Conta</p>
             <p className="text-xs text-gray-500 truncate">Ver perfil</p>
+            </Link>
           </div>
         </div>
       </div>

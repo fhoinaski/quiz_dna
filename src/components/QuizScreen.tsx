@@ -1,10 +1,29 @@
-'use client'
-
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuizStore } from '@/store'
 
 export const QuizScreen = () => {
   const { currentQuiz, currentQuestionIndex, answerQuestion } = useQuizStore()
+  const [startTime, setStartTime] = useState<number>(0)
+  
+  // Iniciar o tempo quando a questão é exibida
+  useEffect(() => {
+    setStartTime(Date.now())
+  }, [currentQuestionIndex])
+
+  const handleAnswer = (selectedOptionIndex: number) => {
+    if (!currentQuiz?.id) return
+    
+    const timeToAnswer = Date.now() - startTime // Tempo em milissegundos
+    const timeTakenInSeconds = timeToAnswer / 1000 // Convertendo para segundos
+
+    answerQuestion(
+      currentQuiz.id,
+      currentQuestionIndex,
+      selectedOptionIndex,
+      timeTakenInSeconds
+    )
+  }
   
   // Verificação de segurança
   if (!currentQuiz?.questions || currentQuiz.questions.length === 0 || !currentQuiz.questions[currentQuestionIndex]) {
@@ -62,7 +81,7 @@ export const QuizScreen = () => {
                   key={index}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => answerQuestion(index, 0)}
+                  onClick={() => handleAnswer(index)}
                   className="w-full p-4 text-left bg-gray-50 hover:bg-gray-100 rounded-lg transition-all"
                 >
                   {option}

@@ -2,70 +2,43 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { useQuizStore } from '@/store'
+import { motion } from 'framer-motion'
+import Link from 'next/link'
+import { AlertTriangle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { QuizScreen } from '@/components/quiz/QuizScreen'
 import { ResultsScreen } from '@/components/quiz/ResultsScreen'
 import { WaitingRoom } from '@/components/quiz/WaitingRoom'
 import { WelcomeScreen } from '@/components/quiz/WelcomeScreen'
-import Link from 'next/link'
-import { ArrowLeft, AlertTriangle } from 'lucide-react'
-
-// interface Question {
-//   text: string
-//   options: string[]
-//   correctAnswer: number
-//   order: number
-// }
-
-// interface Quiz {
-//   id: string
-//   title: string
-//   description: string
-//   questions: Question[]
-// }
+import { useQuizStore } from '@/store'
 
 export default function QuizPage() {
   const params = useParams()
-  const quizId = params.quizId as string
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
 
-  const { currentStep, setCurrentQuiz, checkSessionStatus, isQuizActive } = useQuizStore()
+  const quizId = params.quizId as string
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string>('')
+
+  const { currentQuiz, currentStep, fetchQuiz } = useQuizStore()
 
   useEffect(() => {
-    const fetchQuiz = async () => {
+    const loadQuiz = async () => {
       try {
-        setLoading(true)
-        console.log(`[QuizPage] Carregando quiz com ID: ${quizId}`)
-
-        const response = await fetch(`/api/quiz/${quizId}/public`)
-        if (!response.ok) {
-          throw new Error('Não foi possível carregar o quiz')
+        if (!quizId) {
+          throw new Error('ID do quiz não fornecido')
         }
-
-        const quiz = await response.json()
-        console.log('[QuizPage] Quiz carregado:', quiz)
-        setCurrentQuiz(quiz)
-        setError('')
-
-        await checkSessionStatus()
-        console.log('[QuizPage] Status da sessão verificado:', { isQuizActive })
-      } catch (error: any) {
-        console.error('[QuizPage] Erro ao carregar quiz:', error)
-        setError(error.message || 'Erro ao carregar quiz')
-      } finally {
+        if (!currentQuiz || currentQuiz.id !== quizId) {
+          await fetchQuiz(quizId)
+        }
+        setLoading(false)
+      } catch (err) {
+        setError('Erro ao carregar o quiz. Tente novamente.')
+        console.error('[QuizPage] Erro:', err)
         setLoading(false)
       }
     }
-
-    fetchQuiz()
-
-    const interval = setInterval(() => {
-      checkSessionStatus()
-    }, 3000)
-
-    return () => clearInterval(interval)
-}, [quizId, setCurrentQuiz, checkSessionStatus, isQuizActive]) // Adicionado isQuizActive aqui
+    loadQuiz()
+  }, [quizId, currentQuiz, fetchQuiz])
 
   if (loading) {
     return (
@@ -77,29 +50,29 @@ export default function QuizPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white p-4 flex items-center justify-center">
-        <div className="max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <AlertTriangle className="w-8 h-8 text-red-500" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Ocorreu um erro</h1>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <Link href="/" className="inline-flex items-center text-blue-600 hover:underline">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar para o início
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="text-center">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-lg text-gray-800 mb-4">{error}</p>
+          <Link href="/dashboard">
+            <Button>Voltar ao Dashboard</Button>
           </Link>
         </div>
       </div>
     )
   }
 
-  console.log('[QuizPage] Renderizando com currentStep:', currentStep)
   return (
-    <>
-      {currentStep === 'waiting' && <WaitingRoom />}
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="min-h-screen"
+    >
       {currentStep === 'welcome' && <WelcomeScreen />}
+      {currentStep === 'waiting' && <WaitingRoom />}
       {currentStep === 'quiz' && <QuizScreen />}
       {currentStep === 'results' && <ResultsScreen />}
-    </>
+    </motion.div>
   )
 }

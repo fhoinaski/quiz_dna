@@ -1,6 +1,6 @@
 # Estrutura do Projeto
 
-**Gerado em:** 22/02/2025, 08:26:03  
+**Gerado em:** 23/02/2025, 10:48:53  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -156,9 +156,9 @@ export {};
     "shadcn-ui": "^0.9.4",
     "tailwind-merge": "^2.2.0",
     "tailwindcss-animate": "^1.0.7",
-    "zustand": "^4.5.0"
+    "zustand": "^4.5.0",
+    "socket.io": "^4.7.5"
   },
-  "devDependencies": {
 // ... (conteúdo truncado)
 ```
 
@@ -168,7 +168,7 @@ export {};
 ```md
 # Estrutura do Projeto
 
-**Gerado em:** 22/02/2025, 01:05:47  
+**Gerado em:** 23/02/2025, 09:47:26  
 **Node Version:** v18.20.4  
 **Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
 
@@ -194,8 +194,8 @@ module.exports = {
     ],
     plugins: ["@typescript-eslint"], // Adiciona o plugin @typescript-eslint
     rules: {
+    
       "react-hooks/exhaustive-deps": "warn",
-      "@typescript-eslint/no-explicit-any": "warn", // Define como aviso
 // ... (conteúdo truncado)
 ```
 
@@ -250,34 +250,34 @@ Este guia explica as mudanças feitas para migrar o projeto do Prisma para o Mon
 ```tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { signIn } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Dna } from 'lucide-react'
-import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
+import { Input } from '@/components/ui/Input'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/Card'
 
 export default function LoginPage() {
-  const [errorMessage, setErrorMessage] = useState('')
-  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+  const [errorMessage, setErrorMessage] = useState<string>('')
+  const [loading, setLoading] = useState<boolean>(false)
   const particlesRef = useRef<HTMLDivElement>(null)
-  const [redirectCount, setRedirectCount] = useState(0)
+  const [isMobile, setIsMobile] = useState<boolean>(false)
 
+  // Detectar dispositivo móvel para otimizar partículas
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    
-    // Configuração das partículas
-    if (particlesRef.current) {
-      const particles = Array.from({ length: 50 }).map(() => {
-        const particle = document.createElement('div')
-        particle.className = 'absolute w-2 h-2 bg-blue-600 rounded-full opacity-50'
-        return particle
-      })
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
-      particles.forEach(particle => {
-        particlesRef.current?.appendChild(particle)
-        gsap.set(particle, {
-          x: Math.random() * window.innerWidth,
+  // Configuração otimizada de partículas
+  const setupParticles = useCallback(() => {
+    if (!particlesRef.current || typeof window === 'undefined') return
 // ... (conteúdo truncado)
         ```
 
@@ -333,40 +333,77 @@ const handler = NextAuth(authOptions)
 export { handler as GET, handler as POST }
           ```
 
+      - 📁 profile/
+        - 📄 route.ts
+        
+```typescript
+// src/app/api/profile/route.ts
+import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { connectToDatabase } from "@/lib/mongodb"
+import { Model } from "mongoose"
+import { IUser, User } from "@/models"
+import bcrypt from "bcryptjs"
+
+type UserModel = Model<IUser>
+
+// GET - Obter perfil do usuário
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Não autorizado" },
+        { status: 401 }
+      )
+    }
+
+    await connectToDatabase()
+
+    const user = await (User as UserModel).findById(
+      session.user.id,
+      { password: 0 } // Excluir o campo password
+    )
+
+    if (!user) {
+// ... (conteúdo truncado)
+        ```
+
       - 📁 quiz/
         - 📄 route.ts
         
 ```typescript
-import { NextRequest, NextResponse } from "next/server"; // Use NextRequest para consistência
+// src/app/api/quiz/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
-import mongoose, { Model } from "mongoose";
-import { IQuiz, Quiz } from "@/models";
+import mongoose from "mongoose";
 
-// Tipando o modelo Quiz explicitamente
-type QuizModel = Model<IQuiz>;
+import {  Quiz } from "@/models";
+
+
 
 // POST - Criar novo quiz
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
 
-    const body = await request.json();
+    const body = await request.json()
 
-    // Validação básica dos campos obrigatórios
-    if (!body.title || !body.description || !body.questions) {
-      return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
+    if (!body.title || !body.description || !body.questions || typeof body.totalTimeLimit !== 'number') {
+      return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
     }
 
-    // Conecta ao banco de dados
-    await connectToDatabase();
+    await connectToDatabase()
 
-    // Cria o quiz com tipagem explícita
-    const quiz = await (Quiz as QuizModel).create({
+    const quiz = await Quiz.create({
+      title: body.title,
+      description: body.description,
 // ... (conteúdo truncado)
         ```
 
@@ -405,6 +442,43 @@ export async function GET(
     await connectToDatabase();
 
     // Buscar o quiz, verificando se ele está publicado (isPublished: true)
+// ... (conteúdo truncado)
+            ```
+
+          - 📁 ranking/
+            - 📄 route.ts
+            
+```typescript
+import { NextRequest, NextResponse } from "next/server";
+import { connectToDatabase } from "@/lib/mongodb";
+import mongoose, { Model } from "mongoose";
+import { IQuiz, IQuizResult, Quiz, QuizResult } from "@/models";
+
+type QuizModel = Model<IQuiz>;
+type QuizResultModel = Model<IQuizResult>;
+
+// GET - Obter ranking do quiz
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ quizId: string }> }
+) {
+  try {
+    const params = await context.params;
+    const { quizId } = params;
+
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+      return NextResponse.json(
+        { error: "ID de quiz inválido" },
+        { status: 400 }
+      );
+    }
+
+    await connectToDatabase();
+
+    // Verificar se o quiz existe
+    const quiz = await (Quiz as QuizModel).findById(quizId);
+    if (!quiz) {
+      return NextResponse.json(
 // ... (conteúdo truncado)
             ```
 
@@ -449,36 +523,36 @@ export async function GET(
             - 📄 route.ts
             
 ```typescript
-// src/app/api/quiz/[quizId]/results/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
-import mongoose, { Model } from "mongoose";
-import { IQuiz, IQuizResult, Quiz, QuizResult } from "@/models";
+import mongoose from "mongoose";
+import { Quiz, QuizResult } from "@/models";
 
-// Tipando os modelos explicitamente
-type QuizModel = Model<IQuiz>;
-type QuizResultModel = Model<IQuizResult>;
 
-// Função para calcular bônus de tempo
-function calculateTimeBonus(timeToAnswer: number): number {
-  // Se responder em menos de 3 segundos, ganha 50 pontos extras
-  // Se responder entre 3 e 10 segundos, ganha entre 1 e 50 pontos extras (linear)
-  // Após 10 segundos, não há bônus
-  if (timeToAnswer <= 3) {
-    return 50;
-  } else if (timeToAnswer <= 10) {
-    return Math.floor(50 * ((10 - timeToAnswer) / 7));
-  } else {
-    return 0;
-  }
+
+// Função para calcular a pontuação regressiva (igual ao cliente)
+function calculateRegressiveScore(timeToAnswer: number, maxTime: number = 10): number {
+  const timeInSeconds = timeToAnswer / 1000; // Converte de ms para s
+  console.log(`Calculating regressive score for ${timeInSeconds} seconds`);
+  const maxScore = 1000;
+  if (timeInSeconds >= maxTime) return 0;
+  const score = Math.floor(maxScore * (1 - timeInSeconds / maxTime));
+  return Math.max(score, 0);
 }
 
-// POST - Criar novo resultado de quiz (pode ser enviado sem autenticação)
-export async function POST(
+export async function GET(
   request: NextRequest,
+  context: { params: Promise<{ quizId: string }> }
+) {
+  try {
+    const { quizId } = await context.params;
+    console.log("Requisição GET para resultados do quiz:", quizId);
+
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 // ... (conteúdo truncado)
             ```
 
@@ -523,15 +597,15 @@ export async function GET(
               - 📄 route.ts
               
 ```typescript
+// src/app/api/quiz/[quizId]/session/join/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
-import mongoose, { Model } from 'mongoose'
-import { IQuizSession, QuizSession } from '@/models'
+import mongoose from "mongoose";
 
-// Tipagem explícita para o modelo QuizSession
-type QuizSessionModel = Model<IQuizSession>
+import {  QuizSession } from '@/models'
 
-// Interface para o corpo da requisição
+
+
 interface JoinRequestBody {
   playerName: string
   playerAvatar: string
@@ -540,19 +614,19 @@ interface JoinRequestBody {
 
 export async function POST(request: NextRequest, context: { params: Promise<{ quizId: string }> }) {
   try {
-    // Extrair os parâmetros da URL
     const params = await context.params
     const { quizId } = params
-    console.log(`[POST /api/quiz/${quizId}/session/join] Recebendo requisição para quizId: ${quizId}`)
 
-    // Validar o quizId
     if (!mongoose.Types.ObjectId.isValid(quizId)) {
-      console.error(`[ERROR] ID de quiz inválido: ${quizId}`)
       return NextResponse.json(
         { error: 'ID de quiz inválido', details: 'O quizId fornecido não é um ObjectId válido' },
         { status: 400 }
       )
     }
+
+    const body: JoinRequestBody = await request.json()
+    const { playerName, playerAvatar, userId } = body
+
 // ... (conteúdo truncado)
               ```
 
@@ -560,37 +634,74 @@ export async function POST(request: NextRequest, context: { params: Promise<{ qu
             
 ```typescript
 // src/app/api/quiz/[quizId]/session/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
-import mongoose, { Model } from "mongoose";
-import { IQuiz, IQuizSession, Quiz, QuizSession } from "@/models";
+import mongoose from "mongoose";
 
-type QuizModel = Model<IQuiz>;
-type QuizSessionModel = Model<IQuizSession>;
+import {  Quiz, IQuizSession, QuizSession } from "@/models";
 
-// POST - Criar ou atualizar sessão de quiz
-export async function POST(
+
+
+export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ quizId: string }> }
+  { params }: { params: Promise<{ quizId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    const { quizId } = await params;
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+      return NextResponse.json({ error: "ID de quiz inválido" }, { status: 400 });
     }
 
-    const params = await context.params;
-    const { quizId } = params;
+    await connectToDatabase();
+    const session = await QuizSession.findOne({ quizId }) as IQuizSession | null;
 
-    if (!mongoose.Types.ObjectId.isValid(quizId)) {
-      return NextResponse.json(
-        { error: "ID de quiz inválido" },
-        { status: 400 }
+    return NextResponse.json({
+      exists: !!session,
+      isActive: session?.isActive || false,
+      startsAt: session?.startsAt || null,
+      endsAt: session?.endsAt || null,
+      timeLimit: session?.timeLimit || 30,
+      participants: session?.participants || [],
+      currentQuestion: session?.currentQuestion || 0,
 // ... (conteúdo truncado)
             ```
+
+      - 📁 quizzes/
+        - 📄 route.ts
+        
+```typescript
+import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { connectToDatabase } from '@/lib/mongodb'
+import mongoose from 'mongoose'
+import { Quiz } from '@/models'
+
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      console.log('Sessão inválida ou usuário não autenticado:', session)
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    }
+
+    await connectToDatabase()
+
+    const quizzes = await Quiz.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(session.user.id) } },
+      {
+        $lookup: {
+          from: 'quizresults',
+          localField: '_id',
+          foreignField: 'quizId',
+          as: 'results'
+        }
+      },
+      {
+        $project: {
+          id: '$_id',
+// ... (conteúdo truncado)
+        ```
 
       - 📁 register/
         - 📄 route.ts
@@ -630,6 +741,80 @@ export async function POST(request: NextRequest) {
         ```
 
     - 📁 dashboard/
+      - 📁 documentation/
+        - 📄 page.tsx
+        
+```tsx
+// src/app/dashboard/documentation/page.tsx
+'use client'
+
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import { Book, Search, Terminal,  Settings, Database } from 'lucide-react'
+import { Input } from '@/components/ui/Input'
+import { Card } from '@/components/ui/Card'
+
+const sections = [
+  {
+    title: 'Começando',
+    icon: Book,
+    content: `
+      # Introdução ao Quiz DNA
+      
+      O Quiz DNA é uma plataforma moderna para criação e gerenciamento de quizzes interativos.
+      
+      ## Funcionalidades Principais
+      
+      - Criação de quizzes personalizados
+      - Sistema de pontuação em tempo real
+      - Ranking de participantes
+      - Análise de resultados
+      - Compartilhamento fácil
+    `
+  },
+  {
+    title: 'Criando Quizzes',
+    icon: Terminal,
+// ... (conteúdo truncado)
+        ```
+
+      - 📁 help/
+        - 📄 page.tsx
+        
+```tsx
+'use client'
+
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import { 
+  Search,
+  HelpCircle,
+  Book,
+  MessageCircle,
+  Video,
+  ChevronRight,
+  Mail,
+  X
+} from 'lucide-react'
+import { Input } from '@/components/ui/Input'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/Card'
+
+const helpTopics = [
+  {
+    id: 'getting-started',
+    title: 'Primeiros Passos',
+    description: 'Aprenda a criar e gerenciar seus primeiros quizzes',
+    icon: Book,
+    articles: [
+      'Como criar um novo quiz',
+      'Gerenciando participantes',
+      'Configurando tempo e pontuação'
+    ]
+  },
+// ... (conteúdo truncado)
+        ```
+
       - 📄 layout.tsx
       
 ```tsx
@@ -669,38 +854,75 @@ export default function DashboardLayout({
       - 📄 page.tsx
       
 ```tsx
-// src/app/dashboard/page.tsx
 'use client'
 
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { QuizList } from '@/components/dashboard/QuizList'
 import { Button } from '@/components/ui/button'
+import { motion } from 'framer-motion'
 
 export default function DashboardPage() {
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-3 sm:mb-0">Meus Quizzes</h1>
-        <Link href="/dashboard/quiz/create" passHref>
-          <Button size="sm" className="whitespace-nowrap">
+    <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8"
+      >
+        <h1 className="text-3xl font-bold text-gray-800 mb-4 sm:mb-0">Meus Quizzes</h1>
+        <Link href="/dashboard/quiz/create">
+          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 shadow-md whitespace-nowrap">
             <Plus className="w-4 h-4 mr-2" />
             Criar Novo Quiz
           </Button>
         </Link>
-      </div>
-      
-      <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
-        <QuizList />
-      </div>
-      
-      {/* Informações adicionais */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-          <h2 className="text-lg font-semibold mb-2">Instruções Rápidas</h2>
-          <p className="text-gray-600 text-sm">
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
 // ... (conteúdo truncado)
       ```
+
+      - 📁 profile/
+        - 📄 page.tsx
+        
+```tsx
+// src/app/dashboard/profile/page.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { ProfileSettings } from '@/components/dashboard/ProfileSettings'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/button'
+import {
+  User,
+  
+  Shield,
+  Bell,
+ 
+  Trash2,
+  BarChart,
+  Clock,
+  Award,
+  AlertTriangle
+} from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+// ... (conteúdo truncado)
+        ```
 
       - 📁 quiz/
         - 📁 create/
@@ -745,21 +967,17 @@ export default function CreateQuizPage() {
             - 📄 page.tsx
             
 ```tsx
-// src/app/dashboard/quiz/[quizId]/edit/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-
+import { motion } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
-
 import { QuizForm } from '@/components/dashboard/QuizForm'
 import { QuizControlPanel } from '@/components/dashboard/QuizControlPanel'
 
-// Interfaces
 interface Question {
-  id?: string
   text: string
   options: string[]
   correctAnswer: number
@@ -771,10 +989,14 @@ interface Quiz {
   title: string
   description: string
   questions: Question[]
+  totalTimeLimit: number // Tempo máximo em minutos
   isPublished: boolean
 }
 
 export default function EditQuizPage() {
+  const params = useParams()
+  const quizId = params.quizId as string
+  const [quiz, setQuiz] = useState<Quiz | null>(null)
 // ... (conteúdo truncado)
             ```
 
@@ -782,36 +1004,36 @@ export default function EditQuizPage() {
             - 📄 page.tsx
             
 ```tsx
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
-import { motion } from 'framer-motion'
-import Link from 'next/link'
-import { Trophy, ArrowLeft, AlertTriangle } from 'lucide-react'
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import {
+  Trophy,
+  ArrowLeft,
+  AlertTriangle,
+  Loader2,
+  Trash2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/Card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
-// Interfaces baseadas no seu projeto
 interface Result {
-  id: string
-  playerName: string
-  score: number
-  totalQuestions: number
-  createdAt: string
-}
-
-interface Quiz {
-  id: string
-  title: string
-}
-
-export default function QuizResultsPage() {
-  const params = useParams()
-  const quizId = params.quizId as string
-  const [results, setResults] = useState<Result[]>([])
-  const [quiz, setQuiz] = useState<Quiz | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [fetchAttempted, setFetchAttempted] = useState(false)
+  id: string;
+  playerName: string;
 // ... (conteúdo truncado)
             ```
 
@@ -821,10 +1043,13 @@ export default function QuizResultsPage() {
 ```tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { BarChart2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { gsap } from 'gsap'
+import { BarChart2, AlertTriangle, Loader2, Plus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/Card'
 
 interface QuizWithResultCount {
   id: string
@@ -840,15 +1065,12 @@ export default function DashboardResultsPage() {
   const [quizzes, setQuizzes] = useState<QuizWithResultCount[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [fetchAttempted, setFetchAttempted] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const hasFetched = useRef(false) // Controle para evitar loop
 
-  useEffect(() => {
-    // Evitar múltiplas chamadas
-    if (fetchAttempted) return
-    
-    const fetchQuizzes = async () => {
-      try {
-        setLoading(true)
+  const fetchQuizzes = useCallback(async () => {
+    try {
+      setLoading(true)
 // ... (conteúdo truncado)
         ```
 
@@ -945,32 +1167,32 @@ export default function Home() {
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { useQuizStore } from '@/store'
+import { motion } from 'framer-motion'
+import Link from 'next/link'
+import { AlertTriangle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { QuizScreen } from '@/components/quiz/QuizScreen'
 import { ResultsScreen } from '@/components/quiz/ResultsScreen'
 import { WaitingRoom } from '@/components/quiz/WaitingRoom'
 import { WelcomeScreen } from '@/components/quiz/WelcomeScreen'
-import Link from 'next/link'
-import { ArrowLeft, AlertTriangle } from 'lucide-react'
-
-// interface Question {
-//   text: string
-//   options: string[]
-//   correctAnswer: number
-//   order: number
-// }
-
-// interface Quiz {
-//   id: string
-//   title: string
-//   description: string
-//   questions: Question[]
-// }
+import { useQuizStore } from '@/store'
 
 export default function QuizPage() {
   const params = useParams()
+
   const quizId = params.quizId as string
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string>('')
+
+  const { currentQuiz, currentStep, fetchQuiz } = useQuizStore()
+
+  useEffect(() => {
+    const loadQuiz = async () => {
+      try {
+        if (!quizId) {
+          throw new Error('ID do quiz não fornecido')
+        }
+        if (!currentQuiz || currentQuiz.id !== quizId) {
 // ... (conteúdo truncado)
         ```
 
@@ -978,36 +1200,36 @@ export default function QuizPage() {
           - 📄 page.tsx
           
 ```tsx
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import Link from 'next/link'
-import { Trophy, ArrowLeft, AlertTriangle, Globe, Eye } from 'lucide-react'
-import { Particles } from '@/components/ui/Particles'
-import { Button } from '@/components/ui/button'
+import { useEffect, useState, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import { Trophy, ArrowLeft, AlertTriangle } from "lucide-react";
+import gsap from "gsap";
+import { Button } from "@/components/ui/button";
+import { useParams } from "next/navigation";
 
 interface Result {
-  id: string
-  playerName: string
-  score: number
-  totalQuestions: number
-  createdAt: string
+  id: string;
+  playerName: string;
+  score: number;
+  timeSpent: number;
+  rank: number;
+  createdAt: string;
 }
 
-interface Quiz {
-  id: string
-  title: string
-}
+// interface Quiz {
+//   id: string;
+//   title: string;
+// }
 
 export default function RankingPage() {
-  const params = useParams()
-  const router = useRouter()
-  const quizId = params.quizId as string
-  const [results, setResults] = useState<Result[]>([])
-  const [quiz, setQuiz] = useState<Quiz | null>(null)
-  const [loading, setLoading] = useState(true)
+  const params = useParams();
+  const quizId = params.quizId as string;
+  const [results, setResults] = useState<Result[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 // ... (conteúdo truncado)
           ```
 
@@ -1092,39 +1314,75 @@ export function Header({ user, onMenuClick }: HeaderProps) {
 // ... (conteúdo truncado)
       ```
 
+      - 📄 ProfileSettings.tsx
+      
+```tsx
+// src/components/dashboard/ProfileSettings.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Input } from '@/components/ui/Input'
+import { Button } from '@/components/ui/button'
+import {
+  Bell,
+  Mail,
+  Smartphone,
+  Globe,
+  Lock,
+  Key,
+  Save,
+  AlertTriangle,
+  Camera,
+ 
+  Check,
+  User
+} from 'lucide-react'
+import Image from 'next/image'
+
+interface ProfileSettingsProps {
+  activeTab: string
+}
+
+interface UserProfile {
+  name: string
+  email: string
+// ... (conteúdo truncado)
+      ```
+
       - 📄 QuizControlPanel.tsx
       
 ```tsx
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Users, Play, Pause, RefreshCw, Clock } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Users, Play, Pause, RefreshCw, AlertTriangle, Clock, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 type QuizControlPanelProps = {
   quizId: string
 }
 
-interface SessionStatus {
-  exists: boolean
-  isActive: boolean
-  startsAt: string | null
-  endsAt: string | null
-  participants: {
-    userId: string | null
-    name: string
-    joined: string
-  }[]
+interface Participant {
+  userId: string | null
+  name: string
+  avatar: string
+  joined: string
 }
 
-export function QuizControlPanel({ quizId }: QuizControlPanelProps) {
-  const [status, setStatus] = useState<SessionStatus | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [countdown, setCountdown] = useState<number | null>(null)
-  
 // ... (conteúdo truncado)
       ```
 
@@ -1136,7 +1394,8 @@ export function QuizControlPanel({ quizId }: QuizControlPanelProps) {
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Trash2, Globe, Info, FileText, Save, X } from 'lucide-react'
+import { gsap } from 'gsap'
+import { Plus, Trash2, Globe, Info, FileText, Save, X ,AlertTriangle,Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/Card'
@@ -1148,6 +1407,7 @@ type QuizFormProps = {
     title: string
     description: string
     questions: Question[]
+    totalTimeLimit?: number
     isPublished?: boolean
   }
 }
@@ -1156,11 +1416,9 @@ export function QuizForm({ initialData }: QuizFormProps) {
   const router = useRouter()
   const [title, setTitle] = useState(initialData?.title ?? '')
   const [description, setDescription] = useState(initialData?.description ?? '')
+  const [totalTimeLimit] = useState(initialData?.totalTimeLimit ?? 5)
   const [isPublic, setIsPublic] = useState(initialData?.isPublished ?? false)
   const [questions, setQuestions] = useState<Question[]>(
-    initialData?.questions ?? [{
-      text: '',
-      options: ['', '', '', ''],
 // ... (conteúdo truncado)
       ```
 
@@ -1169,10 +1427,11 @@ export function QuizForm({ initialData }: QuizFormProps) {
 ```tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { Edit, BarChart2, Trash2,  AlertTriangle, ExternalLink, Globe, Plus, Share2, Lock } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { gsap } from 'gsap'
+import { Edit, BarChart2, Trash2, AlertTriangle, ExternalLink, Globe, Plus, Share2, Lock, Loader2 } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1182,17 +1441,16 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/Card'
 
-// Definição de tipos com valores padrão
 type Quiz = {
   id: string
   title: string
   description: string
   isPublished: boolean
-  _count?: {
-    results: number
-  }
+  _count?: { results: number }
   createdAt: string
 }
 
@@ -1203,11 +1461,13 @@ export function QuizList() {
       - 📄 ResultsTable.tsx
       
 ```tsx
+// src/components/dashboard/ResultsTable.tsx
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Card } from '@/components/ui/Card'
+import { AlertTriangle } from 'lucide-react'
 import type { QuizResult } from '@/types'
 
 type ResultsTableProps = {
@@ -1225,14 +1485,12 @@ export function ResultsTable({ quizId }: ResultsTableProps) {
       const response = await fetch(`/api/quiz/${quizId}/results`)
       
       if (!response.ok) {
-        throw new Error('Falha ao carregar resultados')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Falha ao carregar resultados')
       }
       
       const data = await response.json() as QuizResult[]
-      
-      // Remover resultados duplicados baseados no playerName (mantém o de maior pontuação)
-      const uniqueResults = data.reduce<Record<string, QuizResult>>((acc, current) => {
-        // Se é a primeira vez que vemos esse playerName ou o score é maior que o existente
+      setResults(data)
 // ... (conteúdo truncado)
       ```
 
@@ -1244,7 +1502,7 @@ export function ResultsTable({ quizId }: ResultsTableProps) {
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { LayoutDashboard, PlusCircle, BarChart2, Settings, HelpCircle, User } from 'lucide-react'
+import { LayoutDashboard, PlusCircle, BarChart2,HelpCircle, User } from 'lucide-react'
 import { cn } from '@/utils/cn'
 
 const menuItems = [
@@ -1272,184 +1530,401 @@ export function Sidebar() {
 // ... (conteúdo truncado)
       ```
 
+    - 📁 documentation/
+      - 📄 CodeExample.tsx
+      
+```tsx
+// src/components/documentation/CodeExample.tsx
+'use client'
+
+import { useState } from 'react'
+
+import { Check, Copy, Terminal } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+
+interface CodeExampleProps {
+  title: string
+  code: string
+  language?: string
+  description?: string
+}
+
+export function CodeExample({
+  title,
+  code,
+  language = 'typescript',
+  description
+}: CodeExampleProps) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+// ... (conteúdo truncado)
+      ```
+
+      - 📄 DocSection.tsx
+      
+```tsx
+// src/components/documentation/DocSection.tsx
+'use client'
+
+
+import { cn } from '@/lib/utils'
+import { LucideIcon } from 'lucide-react'
+import { Card } from '@/components/ui/Card'
+
+interface DocSectionProps {
+  title: string
+  description?: string
+  icon?: LucideIcon
+  className?: string
+  children: React.ReactNode
+}
+
+export function DocSection({
+  title,
+  description,
+  icon: Icon,
+  className,
+  children
+}: DocSectionProps) {
+  return (
+    <Card className={cn("overflow-hidden", className)}>
+      <div className="border-b p-4 bg-gradient-to-r from-blue-500 to-blue-600">
+        <div className="flex items-center gap-3">
+          {Icon && <Icon className="w-6 h-6 text-white" />}
+          <h2 className="text-xl font-semibold text-white">{title}</h2>
+        </div>
+// ... (conteúdo truncado)
+      ```
+
+      - 📄 SearchBar.tsx
+      
+```tsx
+// src/components/documentation/SearchBar.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Search, X } from 'lucide-react'
+import { Input } from '@/components/ui/Input'
+
+interface SearchBarProps {
+  onSearch: (term: string) => void
+  placeholder?: string
+  className?: string
+}
+
+export function SearchBar({
+  onSearch,
+  placeholder = "Buscar na documentação...",
+  className
+}: SearchBarProps) {
+  const [searchTerm, setSearchTerm] = useState('')
+
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      onSearch(searchTerm)
+    }, 300)
+
+    return () => clearTimeout(debounceTimer)
+  }, [searchTerm, onSearch])
+
+  return (
+// ... (conteúdo truncado)
+      ```
+
     - 📁 quiz/
+      - 📄 QuizControlPanel.tsx
+      
+```tsx
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Timer, Play, Pause, Settings, Users, BarChart2 } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/Input';
+
+interface QuizControlPanelProps {
+  quizId: string;
+  isActive: boolean;
+  onStart: () => void;
+  onPause: () => void;
+  participantCount: number;
+}
+
+export function QuizControlPanel({
+  
+  isActive,
+  onStart,
+  onPause,
+  participantCount
+}: QuizControlPanelProps) {
+  const [timeLimit, setTimeLimit] = useState(60); // Default 60 seconds
+  
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">Quiz Controls</h3>
+          <motion.div
+// ... (conteúdo truncado)
+      ```
+
       - 📄 QuizScreen.tsx
       
 ```tsx
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { useQuizStore } from '@/store'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/button'
-import { Clock } from 'lucide-react'
+import { useEffect, useState, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useQuizStore } from "@/store";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/button";
+import { Clock, Trophy, AlertTriangle,ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import gsap from "gsap";
+import { useRouter } from "next/navigation";
 
 export function QuizScreen() {
+  const router = useRouter();
   const {
     currentQuiz,
     currentQuestionIndex,
     answerQuestion,
-    // playerName,
-    // questionStartTime,
-  } = useQuizStore()
-  const [timeLeft, setTimeLeft] = useState(1000) // Contagem de 1000 a 0
-  const [selectedOption, setSelectedOption] = useState<number | null>(null)
+  
+    timeLimit,
+    answers,
+  
+    finishQuiz,
+    currentStep,
+  } = useQuizStore();
 
-  const currentQuestion = currentQuiz?.questions[currentQuestionIndex]
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [showFeedback, setShowFeedback] = useState<boolean>(false);
+  const [isCorrect, setIsCorrect] = useState<boolean>(false);
+// ... (conteúdo truncado)
+      ```
 
-  // Contagem regressiva
-  useEffect(() => {
-    if (!currentQuestion) return
-    setTimeLeft(1000) // Reinicia para 1000 a cada nova pergunta
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 0) {
-          handleAnswer(selectedOption ?? 0) // Responde automaticamente com 0 se o tempo acabar
+      - 📄 QuizTimer.tsx
+      
+```tsx
+import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Timer, AlertTriangle } from 'lucide-react';
+import gsap from 'gsap';
+
+interface QuizTimerProps {
+  duration: number; // in milliseconds
+  timeLeft: number;
+  onTimeUp?: () => void;
+  size?: 'sm' | 'md' | 'lg';
+  showWarning?: boolean;
+  warningThreshold?: number; // percentage when to show warning
+  className?: string;
+}
+
+export function QuizTimer({
+  duration,
+  timeLeft,
+  
+  size = 'md',
+  showWarning = true,
+  warningThreshold = 30,
+  className = ''
+}: QuizTimerProps) {
+  const [isWarning, setIsWarning] = useState(false);
+  
+  // Calculate percentage remaining
+  const percentage = (timeLeft / duration) * 100;
+  const formattedTime = (timeLeft / 1000).toFixed(1);
+
+// ... (conteúdo truncado)
+      ```
+
+      - 📄 RankingBoard.tsx
+      
+```tsx
+// src/components/quiz/RankingBoard.tsx
+"use client";
+
+import { motion } from "framer-motion";
+import { Trophy, Medal, Star } from "lucide-react";
+import { Card } from "@/components/ui/Card";
+import { useRanking } from "@/hooks/useRanking";
+
+interface RankingBoardProps {
+  quizId: string;
+  pollingInterval?: number;
+}
+
+export function RankingBoard({ quizId, pollingInterval = 3000 }: RankingBoardProps) {
+  const { rankings, loading, error } = useRanking(quizId, pollingInterval);
+
+  if (loading) {
+    return (
+      <Card className="p-4">
+        <div className="flex justify-center items-center h-32">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        </div>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="p-4">
+        <div className="text-red-600 text-center">Erro ao carregar ranking: {error}</div>
 // ... (conteúdo truncado)
       ```
 
       - 📄 ResultsScreen.tsx
       
 ```tsx
-'use client'
-
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Trophy } from 'lucide-react'
 import { useQuizStore } from '@/store'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/Card'
+
+interface RankingEntry {
+  playerName: string
+  score: number
+  timeBonus: number
+  totalScore: number
+  position?: number
+}
 
 export function ResultsScreen() {
-  const { score, playerName, playerAvatar, currentQuiz } = useQuizStore()
+  const { 
+    currentQuiz, 
+    playerName,
+   
+  } = useQuizStore()
+  
+  const [rankings, setRankings] = useState<RankingEntry[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Aqui você pode salvar o resultado na API, se desejar
-  }, [])
+    const fetchResults = async () => {
+      if (!currentQuiz?.id) return
 
-  if (!currentQuiz) return null
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="min-h-screen bg-white p-4 flex items-center justify-center"
-    >
-      <div className="text-center">
-        <Trophy className="w-16 h-16 mx-auto text-yellow-500 mb-4" />
-        <h1 className="text-3xl font-bold mb-2">Parabéns, {playerName}!</h1>
-        <span className="text-4xl">{playerAvatar}</span>
-        <p className="text-xl mb-6">Sua pontuação: {score}</p>
-        <Link href="/dashboard">
 // ... (conteúdo truncado)
       ```
 
       - 📄 WaitingRoom.tsx
       
 ```tsx
-'use client'
+"use client";
 
-import { useEffect, useRef, useState } from 'react'
-import { useQuizStore } from '@/store'
-import { gsap } from 'gsap'
-import { Particles } from '@/components/ui/Particles'
-import { Input } from '@/components/ui/Input'
-import { Button } from '@/components/ui/button'
-import { UserPlus,  Clock } from 'lucide-react'
-
-// Lista de avatares disponíveis
-const avatars = [
-  '🧑‍🚀', '🐱', '🦁', '🐸', '🦄', '🤖', '🐼', '🦊', '🐻', '🐰',
-  '🦝', '🐯', '🐵', '🐙', '🦎', '🐴', '🦜', '🐍', '🦋', '🐳',
-]
+import { useEffect, useState, useCallback } from "react";
+import { Users, Globe } from "lucide-react";
+import { useQuizStore } from "@/store";
 
 export function WaitingRoom() {
-  const {
-    playerName,
-    setPlayerName,
-    // playerAvatar,
-    setPlayerAvatar,
-    currentQuiz,
-    joinSession,
-    checkSessionStatus,
-    // isQuizActive,
-    participants,
-  } = useQuizStore()
+  const { currentQuiz, setCurrentStep } = useQuizStore();
+  const [isActive, setIsActive] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [participantCount, setParticipantCount] = useState(0);
 
-  const [selectedAvatarIndex, setSelectedAvatarIndex] = useState<number | null>(null)
+  const fetchSessionStatus = useCallback(async () => {
+    if (!currentQuiz?.id) return;
+
+    try {
+      const response = await fetch(`/api/quiz/${currentQuiz.id}/session`);
+      if (!response.ok) throw new Error("Falha ao buscar status da sessão");
+      const data = await response.json();
+      setIsActive(data.isActive);
+      setParticipantCount(data.participants.length);
+      setLoading(false);
+      if (data.isActive) {
+        setCurrentStep("quiz");
+      }
+    } catch (error) {
+      console.error("Erro ao buscar status da sessão:", error);
+      setLoading(false);
+    }
+  }, [currentQuiz?.id, setCurrentStep]); // Dependências do useCallback
 // ... (conteúdo truncado)
       ```
 
       - 📄 WelcomeScreen.tsx
       
 ```tsx
+// src/components/quiz/WelcomeScreen.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { motion} from 'framer-motion'
 import { Dna } from 'lucide-react'
 import { useQuizStore } from '@/store'
-import { Particles } from '@/components/ui/Particles'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/Card'
+import gsap from 'gsap'
 
-// Lista de avatares (usando emojis como exemplo; você pode substituir por URLs de imagens)
-const avatars = ['🧑‍🚀', '🐱', '🦁', '🐸', '🦄', '🤖', '🐼', '🦊']
+const avatars = ['🧑‍🚀', '🦸‍♂️', '🦹‍♀️', '🧙‍♂️', '🧝‍♀️', '🦊', '🐉', '🦄']
 
 export function WelcomeScreen() {
-  const { currentQuiz, playerName, setPlayerName, startQuiz } = useQuizStore()
-  const [selectedAvatar, setSelectedAvatar] = useState('')
-  const [countdown, setCountdown] = useState<number | null>(null)
+  const [selectedAvatar, setSelectedAvatar] = useState<string>('')
+  const [playerNameInput, setPlayerNameInput] = useState<string>('')
+  const [error, setError] = useState<string>('')
+  const particlesRef = useRef<HTMLDivElement>(null)
+  const { currentQuiz, joinSession, setPlayerName, setPlayerAvatar } = useQuizStore()
+  const [isMobile, setIsMobile] = useState<boolean>(false)
 
-  // Escolher avatar aleatório ao montar o componente
+  // Detectar dispositivo móvel
   useEffect(() => {
-    if (!selectedAvatar) {
-      setSelectedAvatar(avatars[Math.floor(Math.random() * avatars.length)])
-    }
-  }, [selectedAvatar])
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
-  // Iniciar contagem regressiva quando o nome for inserido
-  useEffect(() => {
-    if (playerName.trim() && countdown === null) {
-      setCountdown(5) // 5 segundos para começar automaticamente
-    }
 // ... (conteúdo truncado)
       ```
 
     - 📄 QuizScreen.tsx
     
 ```tsx
-'use client'
-
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuizStore } from '@/store'
 
 export const QuizScreen = () => {
   const { currentQuiz, currentQuestionIndex, answerQuestion } = useQuizStore()
+  const [startTime, setStartTime] = useState<number>(0)
+  
+  // Iniciar o tempo quando a questão é exibida
+  useEffect(() => {
+    setStartTime(Date.now())
+  }, [currentQuestionIndex])
+
+  const handleAnswer = (selectedOptionIndex: number) => {
+    if (!currentQuiz?.id) return
+    
+    const timeToAnswer = Date.now() - startTime // Tempo em milissegundos
+    const timeTakenInSeconds = timeToAnswer / 1000 // Convertendo para segundos
+
+    answerQuestion(
+      currentQuiz.id,
+      currentQuestionIndex,
+      selectedOptionIndex,
+      timeTakenInSeconds
+    )
+  }
   
   // Verificação de segurança
   if (!currentQuiz?.questions || currentQuiz.questions.length === 0 || !currentQuiz.questions[currentQuestionIndex]) {
     return (
-      <div className="min-h-screen bg-white p-4 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">
-            Erro ao carregar as questões
-          </h2>
-          <p className="text-gray-600">
-            Por favor, tente novamente mais tarde.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  const currentQuestion = currentQuiz.questions[currentQuestionIndex]
-
-  return (
-    <div className="min-h-screen bg-white p-4 flex items-center justify-center">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
 // ... (conteúdo truncado)
     ```
 
@@ -1525,6 +2000,42 @@ const AlertDialogOverlay = React.forwardRef<
 AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName
 
 const AlertDialogContent = React.forwardRef<
+// ... (conteúdo truncado)
+      ```
+
+      - 📄 AnimatedBackground.tsx
+      
+```tsx
+'use client'
+
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { gsap } from 'gsap'
+
+interface AnimatedBackgroundProps {
+  variant?: 'default' | 'quiz' | 'celebration' | 'success' | 'error'
+  density?: 'low' | 'medium' | 'high'
+  className?: string
+  animate?: boolean
+  speed?: 'slow' | 'normal' | 'fast'
+  interactive?: boolean
+}
+
+interface ParticleStyle {
+  size: string
+  color: string
+  baseOpacity: number
+  shapes?: string[]
+}
+
+interface AnimationConfig {
+  duration: number
+  movement: {
+    x: number
+    y: number
+  }
+  rotation?: number
+  ease: string
+}
 // ... (conteúdo truncado)
       ```
 
@@ -1672,6 +2183,42 @@ export function Particles() {
 // ... (conteúdo truncado)
       ```
 
+      - 📄 Timer.tsx
+      
+```tsx
+// src/components/ui/Timer.tsx
+'use client'
+
+import { useEffect, useState, useCallback } from 'react'
+import { motion } from 'framer-motion'
+import { Clock } from 'lucide-react'
+
+interface TimerProps {
+  duration: number // in seconds
+  onComplete?: () => void
+  className?: string
+  showIcon?: boolean
+  size?: 'sm' | 'md' | 'lg'
+  variant?: 'default' | 'warning' | 'danger'
+}
+
+export function Timer({
+  duration,
+  onComplete,
+  className = '',
+  showIcon = true,
+  size = 'md',
+  
+}: TimerProps) {
+  const [timeLeft, setTimeLeft] = useState(duration)
+  const [isRunning, setIsRunning] = useState(true)
+
+  const formatTime = useCallback((seconds: number) => {
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+// ... (conteúdo truncado)
+      ```
+
     - 📄 WelcomeScreen.tsx
     
 ```tsx
@@ -1708,7 +2255,260 @@ export const WelcomeScreen = () => {
 // ... (conteúdo truncado)
     ```
 
+  - 📁 hooks/
+    - 📄 useQuizControl.ts
+    
+```typescript
+import { useState, useCallback } from 'react';
+
+export const useQuizControl = (quizId: string) => {
+  const [isActive, setIsActive] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const startQuiz = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/quiz/${quizId}/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'active' })
+      });
+
+      if (!response.ok) throw new Error('Failed to start quiz');
+      setIsActive(true);
+      setError(null);
+    } catch (err) {
+      setError('Failed to start quiz');
+      console.error(err);
+    }
+  }, [quizId]);
+
+  const pauseQuiz = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/quiz/${quizId}/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'paused' })
+      });
+// ... (conteúdo truncado)
+    ```
+
+    - 📄 useQuizScoring.ts
+    
+```typescript
+// src/hooks/useQuizScoring.ts
+import { useState, useCallback } from 'react';
+
+interface ScoreCalculation {
+  baseScore: number;
+  timeBonus: number;
+  totalScore: number;
+}
+
+export function useQuizScoring(maxTime: number = 1000) {
+  const [currentScore, setCurrentScore] = useState(0);
+  
+  const calculateScore = useCallback((timeLeft: number, isCorrect: boolean): ScoreCalculation => {
+    if (!isCorrect) {
+      return { baseScore: 0, timeBonus: 0, totalScore: 0 };
+    }
+
+    // Base score for correct answer
+    const baseScore = 100;
+
+    // Time bonus calculation (0-900 points based on remaining time)
+    const timeBonus = Math.floor((timeLeft / maxTime) * 900);
+    
+    // Total score
+    const totalScore = baseScore + timeBonus;
+
+    return { baseScore, timeBonus, totalScore };
+  }, [maxTime]);
+
+  const addScore = useCallback((timeLeft: number, isCorrect: boolean) => {
+// ... (conteúdo truncado)
+    ```
+
+    - 📄 useQuizSession.ts
+    
+```typescript
+// src/hooks/useQuizSession.ts
+
+import { useState, useEffect, useCallback } from 'react'
+
+
+interface UseQuizSessionOptions {
+  quizId: string
+  onSessionStart?: () => void
+  onSessionEnd?: () => void
+}
+
+export function useQuizSession({ quizId, onSessionStart}: UseQuizSessionOptions) {
+  const [isActive, setIsActive] = useState(false)
+  const [participants, setParticipants] = useState<any[]>([])
+  const [timeLimit, setTimeLimit] = useState(60)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const fetchSessionStatus = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/quiz/${quizId}/session`)
+      if (!response.ok) throw new Error('Falha ao buscar status da sessão')
+      
+      const data = await response.json()
+      setIsActive(data.status === 'active')
+      setTimeLimit(data.timeLimit || 60)
+      setParticipants(data.participants || [])
+    } catch (err) {
+      console.error('Erro ao buscar status:', err)
+      setError('Falha ao verificar status da sessão')
+// ... (conteúdo truncado)
+    ```
+
+    - 📄 useQuizTimer.ts
+    
+```typescript
+import { useState, useEffect, useCallback } from 'react'
+
+interface QuizTimerOptions {
+  initialTime: number // em segundos
+  onTimeUp?: () => void
+  autoStart?: boolean
+}
+
+export const useQuizTimer = ({
+  initialTime,
+  onTimeUp,
+  autoStart = true,
+}: QuizTimerOptions) => {
+  const [timeLeft, setTimeLeft] = useState(initialTime)
+  const [isRunning, setIsRunning] = useState(autoStart)
+  const [isPaused, setIsPaused] = useState(false)
+
+  const start = useCallback(() => {
+    setIsRunning(true)
+    setIsPaused(false)
+  }, [])
+
+  const pause = useCallback(() => {
+    setIsRunning(false)
+    setIsPaused(true)
+  }, [])
+
+  const resume = useCallback(() => {
+    if (isPaused) {
+      setIsRunning(true)
+// ... (conteúdo truncado)
+    ```
+
+    - 📄 useRanking.ts
+    
+```typescript
+// src/hooks/useRanking.ts
+import { useState, useEffect, useCallback } from 'react'
+
+interface RankingEntry {
+  id: string
+  playerName: string
+  score: number
+  timeSpent: number
+  rank: number
+  createdAt: string
+}
+
+export function useRanking(quizId: string, pollingInterval = 3000) { // Aumentei o intervalo para 3 segundos
+  const [rankings, setRankings] = useState<RankingEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [isPolling, setIsPolling] = useState(true)
+
+  const fetchRankings = useCallback(async () => {
+    if (!isPolling) return;
+    
+    try {
+      const response = await fetch(`/api/quiz/${quizId}/ranking`)
+      
+      if (!response.ok) {
+        throw new Error('Falha ao carregar ranking')
+      }
+
+      const data = await response.json()
+      setRankings(data)
+// ... (conteúdo truncado)
+    ```
+
+    - 📄 useTimer.ts
+    
+```typescript
+// src/hooks/useTimer.ts
+import { useState, useEffect, useCallback } from 'react'
+
+interface UseTimerProps {
+  initialTime: number // em segundos
+  onComplete?: () => void
+  autoStart?: boolean
+}
+
+export function useTimer({
+  initialTime,
+  onComplete,
+  autoStart = true
+}: UseTimerProps) {
+  const [timeLeft, setTimeLeft] = useState(initialTime)
+  const [isRunning, setIsRunning] = useState(autoStart)
+  const [isPaused, setIsPaused] = useState(false)
+
+  const start = useCallback(() => {
+    setIsRunning(true)
+    setIsPaused(false)
+  }, [])
+
+  const pause = useCallback(() => {
+    setIsRunning(false)
+    setIsPaused(true)
+  }, [])
+
+  const resume = useCallback(() => {
+    setIsRunning(true)
+// ... (conteúdo truncado)
+    ```
+
   - 📁 lib/
+    - 📄 animations.ts
+    
+```typescript
+// src/lib/animations.ts
+import { gsap } from 'gsap'
+
+export const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -20 },
+  transition: { duration: 0.3 }
+}
+
+export const fadeIn = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.2 }
+}
+
+export const slideIn = {
+  initial: { x: -20, opacity: 0 },
+  animate: { x: 0, opacity: 1 },
+  exit: { x: 20, opacity: 0 },
+  transition: { duration: 0.3 }
+}
+
+export function createParticles(
+  container: HTMLElement,
+  count: number,
+  options: {
+    size?: string
+    color?: string
+// ... (conteúdo truncado)
+    ```
+
     - 📄 auth.ts
     
 ```typescript
@@ -1817,6 +2617,31 @@ if (!globalForMongoose.mongoose) {
 // ... (conteúdo truncado)
     ```
 
+    - 📄 scoring.ts
+    
+```typescript
+export interface TimedScore {
+    basePoints: number;
+    timeBonus: number;
+    total: number;
+  }
+  
+  export const calculateTimedScore = (
+    timeLeft: number,
+    maxTime: number = 1000,
+    basePoints: number = 100
+  ): TimedScore => {
+    // Time bonus calculation (0-900 points based on remaining time)
+    const timeBonus = Math.floor((timeLeft / maxTime) * 900);
+    
+    return {
+      basePoints,
+      timeBonus,
+      total: basePoints + timeBonus
+    };
+  };
+    ```
+
     - 📄 utils.ts
     
 ```typescript
@@ -1827,6 +2652,37 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+    ```
+
+    - 📄 websocket.ts
+    
+```typescript
+import { Server } from "socket.io";
+import { createServer } from "http";
+import { connectToDatabase } from "./mongodb";
+import { QuizSession } from "@/models";
+
+const httpServer = createServer();
+const io = new Server(httpServer, {
+  cors: { origin: "http://localhost:3000" },
+});
+
+io.on("connection", async (socket) => {
+  console.log("Novo cliente conectado:", socket.id);
+
+  socket.on("joinQuiz", async (quizId: string) => {
+    await connectToDatabase();
+    const session = await QuizSession.findOne({ quizId });
+    socket.join(quizId);
+    io.to(quizId).emit("participantUpdate", session?.participants.length || 0);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Cliente desconectado:", socket.id);
+  });
+});
+
+httpServer.listen(3001, () => console.log("WebSocket rodando na porta 3001"));
     ```
 
   - 📄 middleware.ts
@@ -1905,36 +2761,72 @@ export interface IQuizResult extends Document {
     - 📄 index.ts
     
 ```typescript
-import mongoose, { Document, Schema } from 'mongoose'
+// src/models/index.ts
+import mongoose, { Document, Schema } from "mongoose";
+import { QuizSession } from "./QuizSession";
 
-// Interfaces
 export interface IUser extends Document {
-  name: string
-  email: string
-  password: string
-  createdAt: Date
-  updatedAt: Date
+  name: string;
+  email: string;
+  password: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface IQuestion {
-  text: string
-  options: string[]
-  correctAnswer: number
-  order: number
+  text: string;
+  options: string[];
+  correctAnswer: number;
+  order: number;
 }
 
 export interface IQuiz extends Document {
-  title: string
-  description: string
-  questions: IQuestion[]
-  userId: mongoose.Types.ObjectId
-  isPublished: boolean
-  createdAt: Date
-  updatedAt: Date
+  title: string;
+  description: string;
+  questions: IQuestion[];
+  userId: mongoose.Types.ObjectId;
+  totalTimeLimit: number; // Tempo máximo em minutos
+  
+  isPublished: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+// ... (conteúdo truncado)
+    ```
+
+    - 📄 QuizSession.ts
+    
+```typescript
+// src/models/QuizSession.ts
+import mongoose, { Schema, Document } from 'mongoose';
+
+interface IParticipant {
+  userId: string | null;
+  name: string;
+  avatar: string;
+  joined: Date;
+  score: number;
+  timeBonus: number;
+  lastActive: Date;
 }
 
-export interface IQuizResult extends Document {
-  quizId: mongoose.Types.ObjectId
+export interface IQuizSession extends Document {
+  quizId: mongoose.Types.ObjectId;
+  isActive: boolean;
+  isPaused: boolean;
+  timeLimit: number;
+  startsAt: Date | null;
+  endsAt: Date | null;
+  currentQuestion: number;
+  participants: IParticipant[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const QuizSessionSchema = new Schema<IQuizSession>({
+  quizId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Quiz',
 // ... (conteúdo truncado)
     ```
 
@@ -1959,36 +2851,72 @@ export default function AuthProvider({
     - 📄 index.ts
     
 ```typescript
-'use client'
+"use client";
 
-import { create } from 'zustand'
+import { create } from "zustand";
 
 type Question = {
-  text: string
-  options: string[]
-  correctAnswer: number
-  order: number
-}
+  text: string;
+  options: string[];
+  correctAnswer: number;
+  order: number;
+};
 
 type Quiz = {
-  id: string
-  title: string
-  description: string
-  questions: Question[]
-}
+  id: string;
+  title: string;
+  description: string;
+  questions: Question[];
+  isPublished?: boolean;
+  totalTimeLimit?: number; // Tempo total em minutos
+};
+
+type Answer = {
+  questionIndex: number;
+  selectedAnswer: number;
+  timeToAnswer: number; // Tempo em milissegundos
+};
 
 type Participant = {
+  userId: string | null;
+  name: string;
+  avatar: string;
+// ... (conteúdo truncado)
+    ```
+
+    - 📄 quizSessionStore.ts
+    
+```typescript
+// src/store/quizSessionStore.ts
+import { create } from 'zustand'
+
+interface Participant {
+  userId: string | null
   name: string
   avatar: string
-  joined: Date
+  joined: string
+  score?: number
+  timeBonus?: number
+  lastActive?: string
 }
 
-type QuizStore = {
-  currentStep: 'waiting' | 'welcome' | 'quiz' | 'results'
-  currentQuiz: Quiz | null
-  playerName: string
-  playerAvatar: string
-  currentQuestionIndex: number
+interface QuizSessionState {
+  timeLimit: number
+  currentQuestion: number
+  timeLeft: number
+  participants: Participant[]
+  isActive: boolean
+  isPaused: boolean
+  startTime: string | null
+  endTime: string | null
+  
+  // Actions
+  setTimeLimit: (time: number) => void
+  startSession: () => void
+  pauseSession: () => void
+  resetSession: () => void
+  updateTimeLeft: (time: number) => void
+  updateParticipants: (participants: Participant[]) => void
 // ... (conteúdo truncado)
     ```
 

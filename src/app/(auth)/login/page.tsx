@@ -1,60 +1,46 @@
 'use client'
 
-import { useState } from 'react'
+import { useState,  useRef } from 'react'
 import { signIn } from 'next-auth/react'
-import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Dna } from 'lucide-react'
-import { useEffect, useRef } from 'react'
-import gsap from 'gsap'
+import { Input } from '@/components/ui/Input'
+
+import { Card } from '@/components/ui/Card'
+import { AnimatedBackground } from '@/components/ui/AnimatedBackground'
 
 export default function LoginPage() {
-  const [errorMessage, setErrorMessage] = useState('')
-  const [loading, setLoading] = useState(false)
-  const particlesRef = useRef<HTMLDivElement>(null)
-  const [redirectCount, setRedirectCount] = useState(0)
+  const router = useRouter()
+  const [errorMessage, setErrorMessage] = useState<string>('')
+  const [loading, setLoading] = useState<boolean>(false)
+  const [email, setEmail] = useState<string>('')
+  const [password, setPassword] = useState<string>('')
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    
-    // Configuração das partículas
-    if (particlesRef.current) {
-      const particles = Array.from({ length: 50 }).map(() => {
-        const particle = document.createElement('div')
-        particle.className = 'absolute w-2 h-2 bg-blue-600 rounded-full opacity-50'
-        return particle
-      })
-
-      particles.forEach(particle => {
-        particlesRef.current?.appendChild(particle)
-        gsap.set(particle, {
-          x: Math.random() * window.innerWidth,
-          y: Math.random() * window.innerHeight,
-        })
-
-        gsap.to(particle, {
-          duration: 2 + Math.random() * 2,
-          x: '+=' + (Math.random() * 100 - 50),
-          y: '+=' + (Math.random() * 100 - 50),
-          opacity: 0,
-          repeat: -1,
-          yoyo: true,
-        })
-      })
+  const containerVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { 
+      opacity: 1, 
+      scale: 1, 
+      transition: { 
+        duration: 0.5, 
+        staggerChildren: 0.1 
+      }
     }
-  }, [])
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setErrorMessage('')
     setLoading(true)
+    setErrorMessage('')
 
     try {
-      const formData = new FormData(e.currentTarget)
-      const email = formData.get('email') as string
-      const password = formData.get('password') as string
-
-      console.log('Tentando login com:', { email })
-
       const result = await signIn('credentials', {
         email,
         password,
@@ -62,123 +48,123 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
-        console.error('Erro de login:', result.error)
         setErrorMessage('Email ou senha inválidos')
-        setLoading(false)
       } else {
-        console.log('Login bem-sucedido, redirecionando...', result)
-        setRedirectCount(prev => prev + 1)
-        
-        // Armazena um flag na localStorage que indicará que o usuário está logado
-        localStorage.setItem('isAuthenticated', 'true')
-        localStorage.setItem('redirectAttempt', Date.now().toString())
-        
-        // Primeira tentativa com delay pequeno
-        setTimeout(() => {
-          console.log("Tentativa de redirecionamento 1")
-          window.location.href = `${window.location.origin}/dashboard`
-        }, 500)
-        
-        // Segunda tentativa com delay maior
-        setTimeout(() => {
-          console.log("Tentativa de redirecionamento 2")
-          window.location.replace(`${window.location.origin}/dashboard`)
-        }, 2000)
+        router.push('/dashboard')
       }
     } catch (error) {
-      console.error('Erro ao processar login:', error)
-      setErrorMessage('Ocorreu um erro ao tentar fazer login')
+      setErrorMessage('Erro ao fazer login. Tente novamente.')
+      console.error('Login error:', error)
+    } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="relative min-h-screen bg-white overflow-hidden">
-      <div ref={particlesRef} className="absolute inset-0 pointer-events-none" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 flex items-center justify-center p-4 overflow-hidden relative">
+      <AnimatedBackground 
+        variant="quiz" 
+        density="medium" 
+        speed="normal" 
+        interactive={true} 
+        className="z-0"
+      />
       
-      <div className="flex items-center justify-center min-h-screen">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="bg-white w-full max-w-md p-8 rounded-lg shadow-lg"
-        >
-          <div className="flex justify-center mb-6">
-            <Dna className="h-12 w-12 text-blue-600" />
-          </div>
-          
-          <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
-            DNA Vital Quiz
-          </h2>
-          
-          {redirectCount > 0 && (
-            <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 rounded">
-              Redirecionando para o dashboard... ({redirectCount})
-              <button 
-                onClick={() => window.location.href = '/dashboard'} 
-                className="ml-2 text-blue-600 underline"
-              >
-                Clique aqui se não for redirecionado
-              </button>
-            </div>
-          )}
-          
-          {errorMessage && (
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        ref={containerRef}
+        className="relative z-10 w-full max-w-md"
+      >
+        <Card className="bg-white/95 backdrop-blur-md shadow-2xl border border-blue-100">
+          <motion.div 
+            className="p-8"
+            variants={itemVariants}
+          >
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              className="flex justify-center mb-6"
             >
-              {errorMessage}
+              <Dna className="w-16 h-16 text-blue-600" />
             </motion.div>
-          )}
-          
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label htmlFor="email" className="block text-gray-700 text-sm font-medium mb-1">
-                Email
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-            
-            <div className="mb-6">
-              <label htmlFor="password" className="block text-gray-700 text-sm font-medium mb-1">
-                Senha
-              </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-            
-            <button
-              type="submit"
-              disabled={loading || redirectCount > 0}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-70"
+
+            <motion.h1 
+              variants={itemVariants}
+              className="text-3xl font-bold text-center mb-6 text-gray-800"
             >
-              {loading ? 'Entrando...' : redirectCount > 0 ? 'Redirecionando...' : 'Entrar'}
-            </button>
-          </form>
-          
-          <div className="mt-4 text-center">
-            <p className="text-sm text-gray-600">
-              Não tem uma conta?{' '}
-              <a href="/register" className="text-blue-600 hover:underline">
-                Registre-se
-              </a>
-            </p>
-          </div>
-        </motion.div>
-      </div>
+              Bem-vindo ao DNA Vital Quiz
+            </motion.h1>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <motion.div variants={itemVariants}>
+                <Input
+                  label="Email"
+                  type="email"
+                  name="email"
+                  placeholder="Digite seu email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={loading}
+                  className="bg-gray-50 text-gray-800 placeholder-gray-400 border-blue-200 focus:ring-blue-400"
+                />
+              </motion.div>
+
+              <motion.div variants={itemVariants}>
+                <Input
+                  label="Senha"
+                  type="password"
+                  name="password"
+                  placeholder="Digite sua senha"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                  className="bg-gray-50 text-gray-800 placeholder-gray-400 border-blue-200 focus:ring-blue-400"
+                />
+              </motion.div>
+
+              <AnimatePresence>
+                {errorMessage && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="text-red-500 text-sm text-center"
+                  >
+                    {errorMessage}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+
+              <motion.div variants={itemVariants}>
+                {/* Substituindo Button por motion.button */}
+                <motion.button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg shadow-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={loading}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z" />
+                      </svg>
+                      Carregando...
+                    </span>
+                  ) : (
+                    'Entrar'
+                  )}
+                </motion.button>
+              </motion.div>
+            </form>
+          </motion.div>
+        </Card>
+      </motion.div>
     </div>
   )
 }

@@ -1,52 +1,43 @@
-import { NextRequest, NextResponse } from "next/server"; // Use NextRequest para consistência
+// src/app/api/quiz/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
-import mongoose, { Model } from "mongoose";
-import { IQuiz, Quiz } from "@/models";
+import mongoose from "mongoose";
 
-// Tipando o modelo Quiz explicitamente
-type QuizModel = Model<IQuiz>;
+import {  Quiz } from "@/models";
+
+
 
 // POST - Criar novo quiz
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
 
-    const body = await request.json();
+    const body = await request.json()
 
-    // Validação básica dos campos obrigatórios
-    if (!body.title || !body.description || !body.questions) {
-      return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
+    if (!body.title || !body.description || !body.questions || typeof body.totalTimeLimit !== 'number') {
+      return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
     }
 
-    // Conecta ao banco de dados
-    await connectToDatabase();
+    await connectToDatabase()
 
-    // Cria o quiz com tipagem explícita
-    const quiz = await (Quiz as QuizModel).create({
+    const quiz = await Quiz.create({
       title: body.title,
       description: body.description,
       questions: body.questions,
+      totalTimeLimit: body.totalTimeLimit, // Tempo em minutos
       userId: new mongoose.Types.ObjectId(session.user.id),
       isPublished: body.isPublished || false,
-    });
+    })
 
-    return NextResponse.json({
-      id: quiz._id.toString(),
-      title: quiz.title,
-      description: quiz.description,
-      questions: quiz.questions,
-      isPublished: quiz.isPublished,
-      createdAt: quiz.createdAt,
-      updatedAt: quiz.updatedAt,
-    }, { status: 201 });
+    return NextResponse.json({ success: true, quiz }, { status: 201 })
   } catch (error) {
-    console.error("Erro ao criar quiz:", error);
-    return NextResponse.json({ error: "Erro ao criar quiz" }, { status: 500 });
+    console.error('[POST /api/quiz] Error:', error)
+    return NextResponse.json({ error: 'Erro ao criar quiz' }, { status: 500 })
   }
 }
 
@@ -58,11 +49,9 @@ export async function GET() {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    // Conecta ao banco de dados
     await connectToDatabase();
 
-    // Busca os quizzes do usuário com contagem de resultados
-    const quizzes = await (Quiz as QuizModel).aggregate([
+    const quizzes = await Quiz.aggregate([
       { $match: { userId: new mongoose.Types.ObjectId(session.user.id) } },
       {
         $lookup: {
@@ -91,5 +80,38 @@ export async function GET() {
   } catch (error) {
     console.error("Erro ao listar quizzes:", error);
     return NextResponse.json({ error: "Erro ao listar quizzes" }, { status: 500 });
+  }
+}
+
+// DELETE - Excluir um quiz
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+
+    const url = new URL(request.url);
+    const quizId = url.pathname.split('/').pop(); // Extrai o quizId da URL
+
+    if (!quizId || !mongoose.Types.ObjectId.isValid(quizId)) {
+      return NextResponse.json({ error: "ID de quiz inválido" }, { status: 400 });
+    }
+
+    await connectToDatabase();
+
+    const quiz = await Quiz.findOneAndDelete({
+      _id: new mongoose.Types.ObjectId(quizId),
+      userId: new mongoose.Types.ObjectId(session.user.id),
+    });
+
+    if (!quiz) {
+      return NextResponse.json({ error: "Quiz não encontrado ou não pertence ao usuário" }, { status: 404 });
+    }
+
+    return NextResponse.json({ message: "Quiz excluído com sucesso" }, { status: 200 });
+  } catch (error) {
+    console.error("Erro ao excluir quiz:", error);
+    return NextResponse.json({ error: "Erro ao excluir quiz" }, { status: 500 });
   }
 }
