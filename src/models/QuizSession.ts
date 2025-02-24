@@ -1,4 +1,5 @@
-// src/models/QuizSession.ts
+// src/models/QuizSession.ts - Adicionando campo clientId
+
 import mongoose, { Schema, Document } from 'mongoose';
 
 interface IParticipant {
@@ -9,6 +10,7 @@ interface IParticipant {
   score: number;
   timeBonus: number;
   lastActive: Date;
+  clientId?: string | null; // Novo campo para rastreamento de cliente
 }
 
 export interface IQuizSession extends Document {
@@ -84,6 +86,10 @@ const QuizSessionSchema = new Schema<IQuizSession>({
     lastActive: {
       type: Date,
       default: Date.now
+    },
+    clientId: {
+      type: String,
+      default: null
     }
   }]
 }, {

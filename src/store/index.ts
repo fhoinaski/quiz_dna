@@ -2,6 +2,30 @@
 
 import { create } from "zustand";
 
+// Função para gerar um ID de cliente único
+function generateClientId(): string {
+  return 'client_' + 
+    Date.now().toString(36) + 
+    Math.random().toString(36).substring(2, 10);
+}
+
+// Função para obter o ID do cliente atual ou gerar um novo
+function getClientId(): string {
+  if (typeof window === 'undefined') {
+    return generateClientId();
+  }
+  
+  const CLIENT_ID_KEY = 'quiz_client_id';
+  let clientId = localStorage.getItem(CLIENT_ID_KEY);
+  
+  if (!clientId) {
+    clientId = generateClientId();
+    localStorage.setItem(CLIENT_ID_KEY, clientId);
+  }
+  
+  return clientId;
+}
+
 type Question = {
   text: string;
   options: string[];
@@ -32,6 +56,7 @@ type Participant = {
   score: number;
   timeTaken: number; // Tempo total gasto em segundos
   lastActive?: Date;
+  clientId?: string; // Adicionado o clientId para identificação única
 };
 
 type QuizState = {
@@ -58,7 +83,7 @@ type QuizState = {
   fetchQuiz: (quizId: string) => Promise<void>;
   updateTimeLeft: (timeLeft: number) => void;
   finishQuiz: (quizId: string, answers: Answer[]) => Promise<void>;
-  startQuiz: () => void; // Adicionado ao tipo
+  startQuiz: () => void;
 };
 
 // Função para calcular a pontuação regressiva
@@ -114,10 +139,39 @@ export const useQuizStore = create<QuizState>((set) => ({
   joinSession: async (quizId, playerName, playerAvatar) => {
     try {
       console.log(`[Store] Entrando na sessão do quiz ${quizId} com ${playerName}`);
+      
+      // Verificar se já existe uma sessão armazenada localmente
+      const sessionKey = `quiz_session_${quizId}`;
+      const storedSession = typeof window !== 'undefined' ? localStorage.getItem(sessionKey) : null;
+      
+      // Obter ou gerar um clientId para identificação única
+      const clientId = getClientId();
+      
+      // Se já estiver participando desta sessão, apenas mude o passo
+      if (storedSession) {
+        const session = JSON.parse(storedSession);
+        console.log('[Store] Sessão existente encontrada:', session);
+        
+        // Atualizar o nome e avatar caso tenham mudado
+        if (session.playerName !== playerName || session.playerAvatar !== playerAvatar) {
+          session.playerName = playerName;
+          session.playerAvatar = playerAvatar;
+          localStorage.setItem(sessionKey, JSON.stringify(session));
+        }
+        
+        set({ playerName, playerAvatar, currentStep: "waiting" });
+        return;
+      }
+
+      // Caso não esteja participando, enviar requisição para juntar-se
       const response = await fetch(`/api/quiz/${quizId}/session/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerName, playerAvatar }),
+        body: JSON.stringify({ 
+          playerName, 
+          playerAvatar,
+          clientId // Incluindo o clientId na requisição
+        }),
       });
 
       if (!response.ok) {
@@ -132,6 +186,17 @@ export const useQuizStore = create<QuizState>((set) => ({
         throw new Error(errorMessage);
       }
 
+      // Armazenar informações da sessão localmente
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(sessionKey, JSON.stringify({
+          quizId,
+          playerName,
+          playerAvatar,
+          clientId, // Armazenar o clientId junto com os outros dados
+          joinedAt: new Date().toISOString()
+        }));
+      }
+
       set((state) => ({
         participants: [
           ...state.participants,
@@ -142,6 +207,7 @@ export const useQuizStore = create<QuizState>((set) => ({
             joined: new Date(),
             score: 0,
             timeTaken: 0,
+            clientId // Armazenar no estado também
           },
         ],
         currentStep: "waiting",

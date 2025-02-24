@@ -1,14 +1,14 @@
 // src/components/quiz/WelcomeScreen.tsx
-'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { motion} from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Dna } from 'lucide-react'
 import { useQuizStore } from '@/store'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/Card'
 import gsap from 'gsap'
+import { getQuizSession, hasActiveQuizSession, clearQuizSession } from '@/utils/clientId'
 
 const avatars = ['🧑‍🚀', '🦸‍♂️', '🦹‍♀️', '🧙‍♂️', '🧝‍♀️', '🦊', '🐉', '🦄']
 
@@ -16,9 +16,11 @@ export function WelcomeScreen() {
   const [selectedAvatar, setSelectedAvatar] = useState<string>('')
   const [playerNameInput, setPlayerNameInput] = useState<string>('')
   const [error, setError] = useState<string>('')
+  const [loading, setLoading] = useState<boolean>(true) // Iniciar como true para verificação
   const particlesRef = useRef<HTMLDivElement>(null)
   const { currentQuiz, joinSession, setPlayerName, setPlayerAvatar } = useQuizStore()
   const [isMobile, setIsMobile] = useState<boolean>(false)
+  const autoJoinAttempted = useRef<boolean>(false)
 
   // Detectar dispositivo móvel
   useEffect(() => {
@@ -28,7 +30,71 @@ export function WelcomeScreen() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // Seleção inicial de avatar
+  // Verificar sessão ativa e redirecionar se necessário
+  useEffect(() => {
+    if (!currentQuiz?.id || autoJoinAttempted.current) return;
+    
+    const checkExistingSession = async () => {
+      try {
+        // Verificar se já tem uma sessão ativa para este quiz
+        if (hasActiveQuizSession(currentQuiz.id)) {
+          const sessionData = getQuizSession(currentQuiz.id);
+          console.log('Sessão anterior encontrada:', sessionData);
+          
+          // Verificar se o quiz foi zerado - vamos checar se a sessão no servidor ainda existe
+          const sessionResponse = await fetch(`/api/quiz/${currentQuiz.id}/session`);
+          const serverSessionData = await sessionResponse.json();
+          
+          // Se a sessão não existir ou estiver zerada (não tiver participantes ou isActive=false)
+          const isReset = !serverSessionData.exists || 
+                         !serverSessionData.isActive || 
+                         (serverSessionData.participants && serverSessionData.participants.length === 0);
+          
+          if (isReset) {
+            console.log('Quiz foi zerado, limpando sessão local');
+            clearQuizSession(currentQuiz.id);
+            
+            // Preencher o formulário apenas como sugestão
+            if (sessionData && sessionData.playerName) {
+              setPlayerNameInput(sessionData.playerName);
+            }
+            if (sessionData && sessionData.playerAvatar) {
+              setSelectedAvatar(sessionData.playerAvatar);
+            }
+          } else if (sessionData && sessionData.playerName && sessionData.playerAvatar) {
+            // Se o quiz não foi zerado e temos dados de sessão, fazer auto-join
+            console.log('Quiz ativo, tentando auto-join');
+            setPlayerNameInput(sessionData.playerName);
+            setSelectedAvatar(sessionData.playerAvatar);
+            
+            // Configurar dados no store
+            setPlayerName(sessionData.playerName);
+            setPlayerAvatar(sessionData.playerAvatar);
+            
+            // Tentar juntar-se automaticamente à sessão
+            try {
+              await joinSession(currentQuiz.id, sessionData.playerName, sessionData.playerAvatar);
+              console.log('Auto-join bem-sucedido!');
+            } catch (err) {
+              console.error('Erro no auto-join:', err);
+              // Erro silencioso - o formulário já está preenchido
+            }
+          }
+        } else {
+          console.log('Nenhuma sessão anterior encontrada para este quiz');
+        }
+      } catch (error) {
+        console.error('Erro ao verificar sessão:', error);
+      } finally {
+        setLoading(false);
+        autoJoinAttempted.current = true;
+      }
+    };
+    
+    checkExistingSession();
+  }, [currentQuiz?.id, joinSession, setPlayerName, setPlayerAvatar]);
+
+  // Seleção inicial de avatar se não tivermos um guardado
   useEffect(() => {
     if (!selectedAvatar) {
       setSelectedAvatar(avatars[Math.floor(Math.random() * avatars.length)])
@@ -82,13 +148,32 @@ export function WelcomeScreen() {
     }
 
     try {
+      setLoading(true);
       setPlayerName(playerNameInput)
       setPlayerAvatar(selectedAvatar)
       await joinSession(currentQuiz.id, playerNameInput, selectedAvatar)
     } catch (err) {
       setError('Erro ao entrar na sessão. Tente novamente.')
       console.error('Join session error:', err)
+    } finally {
+      setLoading(false);
     }
+  }
+
+  // Se estiver carregando, mostrar indicador de carregamento
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center"
+        >
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Verificando status do quiz...</p>
+        </motion.div>
+      </div>
+    );
   }
 
   return (
@@ -136,8 +221,8 @@ export function WelcomeScreen() {
 
             {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
             
-            <Button onClick={handleJoin} className="w-full">
-              Entrar no Quiz
+            <Button onClick={handleJoin} className="w-full" disabled={loading}>
+              {loading ? 'Entrando...' : 'Entrar no Quiz'}
             </Button>
           </div>
         </Card>
