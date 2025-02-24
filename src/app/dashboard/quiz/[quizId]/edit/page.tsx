@@ -20,7 +20,7 @@ interface Quiz {
   title: string
   description: string
   questions: Question[]
-  totalTimeLimit: number // Tempo máximo em minutos
+  totalTimeLimit: number
   isPublished: boolean
 }
 
@@ -48,12 +48,10 @@ export default function EditQuizPage() {
         setQuiz(data)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro ao carregar quiz')
-        console.error('Erro ao buscar quiz:', err)
       } finally {
         setLoading(false)
       }
     }
-
     fetchQuiz()
   }, [quizId])
 
@@ -63,7 +61,7 @@ export default function EditQuizPage() {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-          className="h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full"
+          className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full"
         />
       </div>
     )
@@ -77,8 +75,8 @@ export default function EditQuizPage() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-red-50 p-6 rounded-lg shadow-md"
         >
-          <p className="text-red-600 text-lg font-medium">{error || 'Quiz não encontrado'}</p>
-          <Link href="/dashboard" className="mt-4 inline-flex items-center text-blue-600 hover:text-blue-700 transition-colors">
+          <p className="text-error text-lg font-medium">{error || 'Quiz não encontrado'}</p>
+          <Link href="/dashboard" className="mt-4 inline-flex items-center text-primary hover:text-primary-dark transition-colors">
             <ArrowLeft className="w-5 h-5 mr-2" />
             Voltar para Dashboard
           </Link>
@@ -89,19 +87,18 @@ export default function EditQuizPage() {
 
   return (
     <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
-        <Link href="/dashboard" className="inline-flex items-center text-blue-600 hover:text-blue-700 transition-colors">
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+        <nav className="text-sm text-gray-600 mb-4">
+          <Link href="/dashboard" className="hover:text-primary">Dashboard</Link> / Editar Quiz
+        </nav>
+        <Link href="/dashboard" className="inline-flex items-center text-primary hover:text-primary-dark transition-colors">
           <ArrowLeft className="w-5 h-5 mr-2" />
           Voltar para Dashboard
         </Link>
         <h1 className="text-3xl font-bold mt-2 text-gray-800">Editar Quiz</h1>
       </motion.div>
 
-      <QuizControlPanel quizId={quizId}  />
+      <QuizControlPanel quizId={quizId} />
       <QuizForm
         initialData={{
           id: quiz.id,

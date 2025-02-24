@@ -1,0 +1,135 @@
+# Índice da Estrutura do Projeto
+
+**Gerado em:** 23/02/2025, 22:16:51
+
+## Parte 1
+- [Ver detalhes](./PART_1.md)
+**Conteúdo:**
+- 📄 .env.example
+  - 📄 .eslintrc.js
+  - 📄 .gitattributes
+  - 📄 components.json
+  - 📄 generate-code-map copy.js
+  - 📄 global.d.ts
+  - 📄 next-env.d.ts
+  - 📄 next.config.mjs
+  - 📄 package.json
+  - 📄 postcss.config.mjs
+  - 📁 public/
+- 📄 public/file.svg
+  - 📄 public/globe.svg
+  - 📄 public/next.svg
+  - 📄 public/vercel.svg
+  - 📄 public/window.svg  - 📄 README.md
+
+## Parte 2
+- [Ver detalhes](./PART_2.md)
+**Conteúdo:**
+- 📁 src/
+- 📁 src/app/
+- 📁 src/app/(auth)/
+- 📁 src/app/(auth)/login/
+- 📄 src/app/(auth)/login/page.tsx  - 📁 src/app/(auth)/register/
+- 📄 src/app/(auth)/register/page.tsx  - 📁 src/app/api/
+- 📁 src/app/api/auth/
+- 📁 src/app/api/auth/[...nextauth]/
+- 📄 src/app/api/auth/[...nextauth]/route.ts  - 📁 src/app/api/profile/
+- 📄 src/app/api/profile/route.ts  - 📁 src/app/api/quiz/
+- 📄 src/app/api/quiz/route.ts
+  - 📁 src/app/api/quiz/[quizId]/
+- 📁 src/app/api/quiz/[quizId]/public/
+- 📄 src/app/api/quiz/[quizId]/public/route.ts  - 📁 src/app/api/quiz/[quizId]/ranking/
+- 📄 src/app/api/quiz/[quizId]/ranking/route.ts  - 📁 src/app/api/quiz/[quizId]/results/
+- 📁 src/app/api/quiz/[quizId]/results/public/
+- 📄 src/app/api/quiz/[quizId]/results/public/route.ts  - 📄 src/app/api/quiz/[quizId]/results/route.ts  - 📄 src/app/api/quiz/[quizId]/route.ts
+  - 📁 src/app/api/quiz/[quizId]/session/
+- 📁 src/app/api/quiz/[quizId]/session/join/
+- 📄 src/app/api/quiz/[quizId]/session/join/route.ts  - 📄 src/app/api/quiz/[quizId]/session/route.ts  - 📁 src/app/api/quizzes/
+- 📄 src/app/api/quizzes/route.ts  - 📁 src/app/api/register/
+- 📄 src/app/api/register/route.ts  - 📁 src/app/dashboard/
+- 📁 src/app/dashboard/documentation/
+- 📄 src/app/dashboard/documentation/page.tsx  - 📁 src/app/dashboard/help/
+- 📄 src/app/dashboard/help/page.tsx  - 📄 src/app/dashboard/layout.tsx
+  - 📄 src/app/dashboard/page.tsx
+  - 📁 src/app/dashboard/profile/
+- 📄 src/app/dashboard/profile/page.tsx  - 📁 src/app/dashboard/quiz/
+- 📁 src/app/dashboard/quiz/create/
+- 📄 src/app/dashboard/quiz/create/page.tsx  - 📁 src/app/dashboard/quiz/[quizId]/
+- 📁 src/app/dashboard/quiz/[quizId]/edit/
+- 📄 src/app/dashboard/quiz/[quizId]/edit/page.tsx  - 📁 src/app/dashboard/quiz/[quizId]/results/
+- 📄 src/app/dashboard/quiz/[quizId]/results/page.tsx  - 📁 src/app/dashboard/results/
+- 📄 src/app/dashboard/results/page.tsx  - 📄 src/app/globals.css
+  - 📄 src/app/layout.tsx
+  - 📄 src/app/loading.tsx
+  - 📄 src/app/page.tsx
+  - 📁 src/app/quiz/
+- 📁 src/app/quiz/[quizId]/
+- 📄 src/app/quiz/[quizId]/page.tsx
+  - 📁 src/app/quiz/[quizId]/ranking/
+- 📄 src/app/quiz/[quizId]/ranking/page.tsx  - 📁 src/components/
+- 📁 src/components/auth/
+- 📄 src/components/auth/LoginForm.tsx
+  - 📄 src/components/auth/RegisterForm.tsx  - 📁 src/components/dashboard/
+- 📄 src/components/dashboard/Header.tsx
+  - 📄 src/components/dashboard/ProfileSettings.tsx
+  - 📄 src/components/dashboard/QuizControlPanel.tsx
+  - 📄 src/components/dashboard/QuizForm.tsx
+  - 📄 src/components/dashboard/QuizList.tsx
+  - 📄 src/components/dashboard/ResultsTable.tsx
+  - 📄 src/components/dashboard/Sidebar.tsx  - 📁 src/components/documentation/
+- 📄 src/components/documentation/CodeExample.tsx
+  - 📄 src/components/documentation/DocSection.tsx
+  - 📄 src/components/documentation/SearchBar.tsx  - 📁 src/components/quiz/
+- 📄 src/components/quiz/QuizControlPanel.tsx
+  - 📄 src/components/quiz/QuizScreen.tsx
+  - 📄 src/components/quiz/QuizTimer.tsx
+  - 📄 src/components/quiz/RankingBoard.tsx
+  - 📄 src/components/quiz/ResultsScreen.tsx
+  - 📄 src/components/quiz/WaitingRoom.tsx
+  - 📄 src/components/quiz/WelcomeScreen.tsx  - 📄 src/components/QuizScreen.tsx
+  - 📄 src/components/RedirectToLogin.tsx
+  - 📄 src/components/ResultsScreen.tsx
+  - 📁 src/components/ui/
+- 📄 src/components/ui/alert-dialog.tsx
+  - 📄 src/components/ui/AnimatedBackground.tsx
+  - 📄 src/components/ui/button.tsx
+  - 📄 src/components/ui/Card.tsx
+  - 📄 src/components/ui/Input.tsx
+  - 📄 src/components/ui/Particles.tsx
+  - 📄 src/components/ui/progress.tsx
+  - 📄 src/components/ui/Timer.tsx
+  - 📄 src/components/ui/tooltip.tsx  - 📄 src/components/WelcomeScreen.tsx  - 📁 src/hooks/
+- 📄 src/hooks/useQuizControl.ts
+  - 📄 src/hooks/useQuizScoring.ts
+  - 📄 src/hooks/useQuizSession.ts
+  - 📄 src/hooks/useQuizTimer.ts
+  - 📄 src/hooks/useRanking.ts
+  - 📄 src/hooks/useTimer.ts
+  - 📄 src/hooks/useToast.ts  - 📁 src/lib/
+- 📄 src/lib/animations.ts
+  - 📄 src/lib/auth.ts
+  - 📄 src/lib/init-mongodb.ts
+  - 📄 src/lib/mongodb.ts
+  - 📄 src/lib/scoring.ts
+  - 📄 src/lib/utils.ts
+  - 📄 src/lib/websocket.ts  - 📄 src/middleware.ts
+  - 📁 src/models/
+- 📄 src/models/index copy.ts
+  - 📄 src/models/index.ts
+  - 📄 src/models/QuizSession.ts  - 📁 src/providers/
+- 📄 src/providers/SessionProvider.tsx  - 📁 src/store/
+- 📄 src/store/index.ts
+  - 📄 src/store/quizSessionStore.ts  - 📁 src/types/
+- 📄 src/types/error.ts
+  - 📄 src/types/index.ts
+  - 📄 src/types/next-auth.d.ts  - 📁 src/utils/
+- 📄 src/utils/cn.ts
+
+## Parte 3
+- [Ver detalhes](./PART_3.md)
+**Conteúdo:**
+- 📄 tailwind.config.ts
+  - 📄 tsconfig.json
+  - 📄 vercel-build.js
+  - 📄 vercel.json
+

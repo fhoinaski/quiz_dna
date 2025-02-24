@@ -1,3 +1,12 @@
+# Estrutura do Projeto - Parte PART_3
+
+**Gerado em:** 23/02/2025, 22:16:51  
+**Node Version:** v18.20.4  
+**Diretório Raiz:** `E:\Projetos\quiz-dna\dna-vital-quiz-next`
+
+- 📄 tailwind.config.ts
+
+```typescript
 import type { Config } from 'tailwindcss'
 
 const config: Config = {
@@ -138,3 +147,76 @@ const config: Config = {
 }
 
 export default config
+```
+
+- 📄 tsconfig.json
+
+```json
+{
+  "compilerOptions": {
+    "target": "ESNext", // Alinhar com "lib" e versões modernas do JS
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true, // Já está OK, mantém para evitar conflitos
+    "strict": false, // Temporariamente desativar para diagnosticar o erro
+    "noEmit": true,
+    "esModuleInterop": true,
+    "noImplicitAny": false, // Desativar junto com "strict" temporariamente
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "forceConsistentCasingInFileNames": true,
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "next-env.d.ts",
+    "src/app/api/**/*.ts" // Manter apenas os arquivos fonte
+    ,
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next" // Excluir explicitamente .next para evitar interferência
+  ]
+}
+
+```
+
+- 📄 vercel-build.js
+
+```javascript
+const { execSync } = require('child_process');
+
+console.log('Building Next.js app...');
+execSync('next build', { stdio: 'inherit' });
+```
+
+- 📄 vercel.json
+
+```json
+{
+  "functions": {
+    "src/app/api/**/*": {
+      "memory": 1024
+    }
+  }
+}
+```
