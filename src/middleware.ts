@@ -44,8 +44,11 @@ export async function middleware(request: NextRequest) {
       console.log('Autenticado na homepage, redirecionando para dashboard')
       return NextResponse.redirect(dashboardUrl)
     }
-    console.log('Não autenticado na homepage, redirecionando para login')
-    return NextResponse.redirect(loginUrl)
+    // Removemos o redirecionamento para login, permitindo acesso à homepage
+    console.log('Não autenticado na homepage, permitindo acesso')
+    return NextResponse.next()
+    //redireicona para login
+    // return NextResponse.redirect(loginUrl)
   }
   
   return NextResponse.next()

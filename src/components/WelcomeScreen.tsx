@@ -63,7 +63,7 @@ export const WelcomeScreen = () => {
         </motion.div>
 
         <h1 className="text-4xl font-bold text-gray-800 mb-8 text-center">
-          DNA Vital Group Quiz
+          DNA  Group Quiz
         </h1>
 
         <motion.div

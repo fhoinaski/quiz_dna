@@ -88,14 +88,8 @@ export default function EditQuizPage() {
   return (
     <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-        <nav className="text-sm text-gray-600 mb-4">
-          <Link href="/dashboard" className="hover:text-primary">Dashboard</Link> / Editar Quiz
-        </nav>
-        <Link href="/dashboard" className="inline-flex items-center text-primary hover:text-primary-dark transition-colors">
-          <ArrowLeft className="w-5 h-5 mr-2" />
-          Voltar para Dashboard
-        </Link>
-        <h1 className="text-3xl font-bold mt-2 text-gray-800">Editar Quiz</h1>
+      
+        {/* <h1 className="text-3xl font-bold mt-2 text-gray-800">Editar Quiz</h1> */}
       </motion.div>
 
       <QuizControlPanel quizId={quizId} />

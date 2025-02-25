@@ -1,13 +1,15 @@
 'use client'
 
-import { useState,  useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Dna } from 'lucide-react'
+import { motion, AnimatePresence} from 'framer-motion'
+import { Dna, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { Input } from '@/components/ui/Input'
-
+import { Button } from '@/components/ui/button'
 import { AnimatedBackground } from '@/components/ui/AnimatedBackground'
+import { gsap } from 'gsap'
+import { CustomCursor } from '@/components/ui/CustomCursor'
 
 interface RegisterFormData {
   name: string
@@ -26,31 +28,66 @@ export default function RegisterPage() {
     confirmPassword: '',
   })
   const router = useRouter()
-  const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef(null)
+  const logoRef = useRef(null)
+ 
+  const particlesRef = useRef(null)
 
-  const containerVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: { 
-      opacity: 1, 
-      scale: 1, 
-      transition: { 
-        duration: 0.5, 
-        staggerChildren: 0.1 
-      }
+
+
+
+
+  // Efeito de rotação do logo
+  useEffect(() => {
+    if (logoRef.current) {
+      gsap.to(logoRef.current, {
+        rotate: 360,
+        duration: 20,
+        repeat: -1,
+        ease: "none"
+      })
     }
-  }
+  }, [])
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
-  }
+  // Efeito de partículas
+  useEffect(() => {
+    if (!particlesRef.current) return
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const particleCount = window.innerWidth < 768 ? 15 : 30
+    const particles = Array.from({ length: particleCount }).map(() => {
+      const particle = document.createElement('div')
+      particle.className = 'absolute w-2 h-2 bg-blue-500/30 rounded-full blur-sm'
+      particlesRef.current?.appendChild(particle)
+      return particle
+    })
+
+    particles.forEach((particle) => {
+      gsap.set(particle, {
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        scale: Math.random() * 0.5 + 0.5,
+      })
+
+      gsap.to(particle, {
+        duration: 5 + Math.random() * 3,
+        x: `+=${Math.random() * 100 - 50}`,
+        y: `+=${Math.random() * 100 - 50}`,
+        opacity: 0.1 + Math.random() * 0.2,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      })
+    })
+
+    return () => particles.forEach((particle) => particle.remove())
+  }, [])
+
+  const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setErrorMessage('')
     setLoading(true)
@@ -59,6 +96,16 @@ export default function RegisterPage() {
 
     if (password !== confirmPassword) {
       setErrorMessage('As senhas não coincidem')
+      if (containerRef.current) {
+        gsap.to(containerRef.current, {
+          x: -10,
+          duration: 0.1,
+          repeat: 5,
+          yoyo: true,
+          ease: 'power2.inOut',
+          onComplete: () => gsap.set(containerRef.current, { x: 0 }),
+        })
+      }
       setLoading(false)
       return
     }
@@ -77,152 +124,202 @@ export default function RegisterPage() {
       }
 
       router.push('/login?registered=true')
-    } catch (err: unknown) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao criar conta'
       setErrorMessage(errorMessage)
+      if (containerRef.current) {
+        gsap.to(containerRef.current, {
+          x: -10,
+          duration: 0.1,
+          repeat: 5,
+          yoyo: true,
+          ease: 'power2.inOut',
+          onComplete: () => gsap.set(containerRef.current, { x: 0 }),
+        })
+      }
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 flex items-center justify-center p-4 overflow-hidden relative">
-      <AnimatedBackground 
-        variant="quiz" 
-        density="medium" 
-        speed="normal" 
-        interactive={true} 
-        className="z-0"
-      />
-      
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        ref={containerRef}
-        className="relative z-10 w-full max-w-lg"
-      >
-        <motion.div 
-          className="bg-white/95 backdrop-blur-md rounded-lg shadow-2xl border border-blue-100 p-8"
-          variants={itemVariants}
+    <>
+    <CustomCursor />
+
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4 relative overflow-hidden">
+        {/* Partículas */}
+        <div ref={particlesRef} className="absolute inset-0 pointer-events-none" />
+        
+        {/* Fundo animado */}
+        <AnimatedBackground 
+          variant="quiz" 
+          density="medium" 
+          speed="normal" 
+          interactive={true} 
+          className="absolute inset-0 z-0"
+        />
+
+        <motion.div
+          ref={containerRef}
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: 'easeOut', type: 'spring', bounce: 0.3 }}
+          className="relative z-10 w-full max-w-lg"
         >
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-            className="flex justify-center mb-6"
+          <div 
+            className="bg-white/80 backdrop-blur-md rounded-xl shadow-xl border border-gray-100 p-8"
+            style={{ boxShadow: '0 10px 30px rgba(59, 130, 246, 0.1)' }}
           >
-            <Dna size={80} className="text-blue-600" />
-          </motion.div>
-
-          <motion.h1 
-            variants={itemVariants}
-            className="text-3xl font-bold text-center mb-8 text-gray-800"
-          >
-            Junte-se ao DNA Vital Quiz
-          </motion.h1>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <motion.div variants={itemVariants}>
-              <Input
-                label="Nome"
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-                disabled={loading}
-                className="bg-gray-50 text-gray-800 placeholder-gray-400 border-blue-200 focus:ring-blue-400"
-              />
+            {/* Logo */}
+            <motion.div
+              ref={logoRef}
+              className="flex justify-center mb-8"
+            >
+              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center shadow-lg">
+                <Dna className="w-10 h-10 text-blue-600" />
+              </div>
             </motion.div>
 
-            <motion.div variants={itemVariants}>
-              <Input
-                label="Email"
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                required
-                disabled={loading}
-                className="bg-gray-50 text-gray-800 placeholder-gray-400 border-blue-200 focus:ring-blue-400"
-              />
-            </motion.div>
+            {/* Título */}
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="text-3xl font-bold text-center mb-8 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
+            >
+              Junte-se ao DNA Quiz
+            </motion.h1>
 
-            <motion.div variants={itemVariants}>
-              <Input
-                label="Senha"
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                required
-                minLength={6}
-                disabled={loading}
-                className="bg-gray-50 text-gray-800 placeholder-gray-400 border-blue-200 focus:ring-blue-400"
-              />
-            </motion.div>
-
-            <motion.div variants={itemVariants}>
-              <Input
-                label="Confirmar Senha"
-                type="password"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                required
-                minLength={6}
-                disabled={loading}
-                className="bg-gray-50 text-gray-800 placeholder-gray-400 border-blue-200 focus:ring-blue-400"
-              />
-            </motion.div>
-
-            <AnimatePresence>
-              {errorMessage && (
-                <motion.p
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="text-red-500 text-sm text-center"
-                >
-                  {errorMessage}
-                </motion.p>
-              )}
-            </AnimatePresence>
-
-            <motion.div variants={itemVariants}>
-              {/* Substituindo Button por motion.button */}
-              <motion.button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg shadow-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+            {/* Formulário */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
               >
-                {loading ? (
-                  <span className="flex items-center justify-center">
-                    <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z" />
-                    </svg>
-                    Criando conta...
-                  </span>
-                ) : (
-                  'Criar conta'
+                <Input
+                  label="Nome"
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                  disabled={loading}
+                  className="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                />
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+              >
+                <Input
+                  label="Email"
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                  disabled={loading}
+                  className="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                />
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+              >
+                <Input
+                  label="Senha"
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  required
+                  minLength={6}
+                  disabled={loading}
+                  className="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                />
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.6 }}
+              >
+                <Input
+                  label="Confirmar Senha"
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  required
+                  minLength={6}
+                  disabled={loading}
+                  className="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                />
+              </motion.div>
+
+              {/* Mensagem de erro */}
+              <AnimatePresence>
+                {errorMessage && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="text-red-500 text-sm text-center"
+                  >
+                    {errorMessage}
+                  </motion.p>
                 )}
-              </motion.button>
-            </motion.div>
+              </AnimatePresence>
 
-            <motion.div variants={itemVariants} className="text-center">
-              <Link 
-                href="/login" 
-                className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+              {/* Botão */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.7 }}
               >
-                Já tem uma conta? Faça login
-              </Link>
-            </motion.div>
-          </form>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full py-6 text-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  {loading ? (
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      className="w-5 h-5 border-2 border-t-white border-gray-300 rounded-full"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <Zap className="w-5 h-5" />
+                      Criar Conta
+                    </div>
+                  )}
+                </Button>
+              </motion.div>
+
+              {/* Link para login */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.8 }}
+                className="text-center"
+              >
+                <Link 
+                  href="/login" 
+                  className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
+                >
+                  Já tem uma conta? Faça login
+                </Link>
+              </motion.div>
+            </form>
+          </div>
         </motion.div>
-      </motion.div>
-    </div>
+      </div>
+    </>
   )
 }
