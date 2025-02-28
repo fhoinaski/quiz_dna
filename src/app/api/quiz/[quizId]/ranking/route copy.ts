@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import mongoose, { Model } from "mongoose";
 import { IQuiz, IQuizResult, Quiz, QuizResult } from "@/models";
+import { getCachedData, setCachedData } from "@/lib/cache";
 
 type QuizModel = Model<IQuiz>;
 type QuizResultModel = Model<IQuizResult>;
@@ -19,6 +20,16 @@ export async function GET(
       return NextResponse.json({ error: "ID de quiz inválido" }, { status: 400 });
     }
 
+    // Chave única para o cache baseada no quizId
+    const cacheKey = `quiz-ranking-${quizId}`;
+    const cachedData = getCachedData(cacheKey);
+
+    // Verificar se os dados estão no cache
+    if (cachedData) {
+   
+      return NextResponse.json(cachedData);
+    }
+
     await connectToDatabase();
 
     const quiz = await (Quiz as QuizModel).findById(quizId);
@@ -32,7 +43,6 @@ export async function GET(
 
     console.log(`[GET /api/quiz/${quizId}/ranking] Resultados brutos do MongoDB:`, results);
 
-    // Ordenar por número de acertos (descendente) e depois por tempo (ascendente)
     const sortedResults = results.sort((a, b) => {
       if (a.correctAnswers !== b.correctAnswers) {
         return b.correctAnswers - a.correctAnswers; // Mais acertos ganha
@@ -43,7 +53,7 @@ export async function GET(
     const rankings = sortedResults.map((result, index) => ({
       id: result._id.toString(),
       playerName: result.playerName,
-      score: result.score, // Mantido para exibição, mas não usado para ordenação
+      score: result.score,
       correctAnswers: result.correctAnswers,
       totalQuestions: result.totalQuestions,
       timeSpent: result.timeSpent,
@@ -51,8 +61,11 @@ export async function GET(
       createdAt: result.createdAt.toISOString(),
     }));
 
-    console.log(`Ranking para quiz ${quizId}:`, rankings);
+    // Armazenar os dados no cache
+    setCachedData(cacheKey, rankings);
+    console.log(`[GET /api/quiz/${quizId}/ranking] Dados armazenados no cache`);
 
+    console.log(`Ranking para quiz ${quizId}:`, rankings);
     return NextResponse.json(rankings);
   } catch (error) {
     console.error("Erro ao buscar ranking:", error);

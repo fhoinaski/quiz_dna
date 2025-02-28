@@ -73,6 +73,7 @@ type QuizState = {
   setCurrentStep: (step: "welcome" | "waiting" | "quiz" | "results") => void;
   setPlayerName: (name: string) => void;
   setPlayerAvatar: (avatar: string) => void;
+  setAnswers: (answers: Answer[]) => void; // Nova ação adicionada
   answerQuestion: (
     quizId: string,
     questionIndex: number,
@@ -85,8 +86,6 @@ type QuizState = {
   finishQuiz: (quizId: string, answers: Answer[]) => Promise<void>;
   startQuiz: () => void;
 };
-
-
 
 function calculateScore(isCorrect: boolean): number {
   return isCorrect ? 100 : 0;
@@ -108,8 +107,8 @@ export const useQuizStore = create<QuizState>((set) => ({
   setCurrentStep: (step) => set({ currentStep: step }),
   setPlayerName: (name) => set({ playerName: name }),
   setPlayerAvatar: (avatar) => set({ playerAvatar: avatar }),
+  setAnswers: (answers) => set({ answers }), // Implementação da nova ação
 
-  
   answerQuestion: (quizId, questionIndex, answer, timeTaken) => {
     const state = useQuizStore.getState();
     const question = state.currentQuiz?.questions[questionIndex];
@@ -139,19 +138,14 @@ export const useQuizStore = create<QuizState>((set) => ({
     try {
       console.log(`[Store] Entrando na sessão do quiz ${quizId} com ${playerName}`);
       
-      // Verificar se já existe uma sessão armazenada localmente
       const sessionKey = `quiz_session_${quizId}`;
       const storedSession = typeof window !== 'undefined' ? localStorage.getItem(sessionKey) : null;
-      
-      // Obter ou gerar um clientId para identificação única
       const clientId = getClientId();
       
-      // Se já estiver participando desta sessão, apenas mude o passo
       if (storedSession) {
         const session = JSON.parse(storedSession);
         console.log('[Store] Sessão existente encontrada:', session);
         
-        // Atualizar o nome e avatar caso tenham mudado
         if (session.playerName !== playerName || session.playerAvatar !== playerAvatar) {
           session.playerName = playerName;
           session.playerAvatar = playerAvatar;
@@ -162,14 +156,13 @@ export const useQuizStore = create<QuizState>((set) => ({
         return;
       }
 
-      // Caso não esteja participando, enviar requisição para juntar-se
       const response = await fetch(`/api/quiz/${quizId}/session/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           playerName, 
           playerAvatar,
-          clientId // Incluindo o clientId na requisição
+          clientId
         }),
       });
 
@@ -185,13 +178,12 @@ export const useQuizStore = create<QuizState>((set) => ({
         throw new Error(errorMessage);
       }
 
-      // Armazenar informações da sessão localmente
       if (typeof window !== 'undefined') {
         localStorage.setItem(sessionKey, JSON.stringify({
           quizId,
           playerName,
           playerAvatar,
-          clientId, // Armazenar o clientId junto com os outros dados
+          clientId,
           joinedAt: new Date().toISOString()
         }));
       }
@@ -206,7 +198,7 @@ export const useQuizStore = create<QuizState>((set) => ({
             joined: new Date(),
             score: 0,
             timeTaken: 0,
-            clientId // Armazenar no estado também
+            clientId
           },
         ],
         currentStep: "waiting",
@@ -249,12 +241,10 @@ export const useQuizStore = create<QuizState>((set) => ({
         throw new Error("Nome do jogador não definido");
       }
   
-      // Verificar se currentQuiz existe
       if (!currentQuiz) {
         throw new Error("Quiz não carregado");
       }
   
-      // Calcular respostas corretas manualmente para garantir consistência
       const enrichedAnswers = answers.map((answer) => {
         const question = currentQuiz.questions[answer.questionIndex];
         const isCorrect = question && question.correctAnswer === answer.selectedAnswer;
@@ -272,7 +262,6 @@ export const useQuizStore = create<QuizState>((set) => ({
   
       const clientId = getClientId();
   
-      // Mudar para a tela de resultados imediatamente
       set({ currentStep: "results" });
   
       const response = await fetch(`/api/quiz/${quizId}/results`, {
@@ -283,7 +272,7 @@ export const useQuizStore = create<QuizState>((set) => ({
           playerAvatar: playerAvatar || "",
           answers: enrichedAnswers,
           clientId,
-          correctAnswers, // Enviando explicitamente o número de acertos
+          correctAnswers,
           totalQuestions: currentQuiz.questions.length,
         }),
       });
@@ -296,7 +285,6 @@ export const useQuizStore = create<QuizState>((set) => ({
       const data = await response.json();
       console.log("[Store] Resultado salvo:", data);
   
-      // Atualizar ranking
       const rankingResponse = await fetch(`/api/quiz/${quizId}/ranking`);
       if (rankingResponse.ok) {
         const rankingData = await rankingResponse.json();
@@ -315,11 +303,11 @@ export const useQuizStore = create<QuizState>((set) => ({
     set((state) => {
       if (!state.currentQuiz) {
         console.error("[Store] Nenhum quiz carregado para iniciar");
-        return state; // Não faz nada se não houver quiz
+        return state;
       }
       if (!state.playerName.trim()) {
         console.error("[Store] Nome do jogador não definido");
-        return state; // Não inicia sem nome
+        return state;
       }
       console.log(`[Store] Iniciando quiz para ${state.playerName}`);
       return {
