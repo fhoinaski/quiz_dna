@@ -308,7 +308,7 @@ export function WaitingRoom() {
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li>• {currentQuiz?.questions?.length || 0} questões</li>
                   <li>• {currentQuiz?.totalTimeLimit || 5} minutos de duração</li>
-                  <li>• Pontuação baseada no tempo</li>
+                  {/* <li>• Pontuação baseada no tempo</li> */}
                 </ul>
               </motion.div>
             </div>

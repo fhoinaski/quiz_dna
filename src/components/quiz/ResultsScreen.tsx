@@ -12,6 +12,7 @@ import { AnimatedBackground } from "@/components/ui/AnimatedBackground";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { CalculatingResults } from "@/components/ui/CalculatingResults";
 
 interface RankingEntry {
   playerName: string;
@@ -90,6 +91,7 @@ export function ResultsScreen() {
   const [playerRank, setPlayerRank] = useState<number | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isFetching, setIsFetching] = useState(false);
+  const [showCalculating, setShowCalculating] = useState(true); // Novo estado para animação
   const { toast, showToast, hideToast } = useToast();
   const fetchIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -145,16 +147,20 @@ export function ResultsScreen() {
     }
   }, [currentQuiz?.id, playerName, rankings, isFetching, showToast]);
 
-  // Configurar polling apenas uma vez na montagem do componente
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
   useEffect(() => {
-    fetchResults(); // Carregar resultados iniciais
+    // Inicia a animação por 15 segundos antes de carregar os resultados
+    const timer = setTimeout(() => {
+      setShowCalculating(false); // Termina a animação após 15 segundos
+      fetchResults(); // Carrega os resultados após a animação
+    }, 15000);
 
     fetchIntervalRef.current = setInterval(() => {
-      fetchResults(); 
-    }, 30000);
+      fetchResults(); // Polling a cada 20 segundos após o carregamento inicial
+    }, 15000);
 
     return () => {
+      clearTimeout(timer);
       if (fetchIntervalRef.current) {
         clearInterval(fetchIntervalRef.current);
       }
@@ -173,6 +179,8 @@ export function ResultsScreen() {
     timeSpent: answers.reduce((total, a) => total + a.timeToAnswer / 1000, 0),
   };
 
+  const playerStats = playerEntry;
+
   const shareResults = async () => {
     const text = `🏆 Quiz "${currentQuiz?.title}": ${playerStats.correctAnswers}/${playerStats.totalQuestions} acertos em ${playerStats.timeSpent.toFixed(1)}s! ${playerRank ? `Posição: #${playerRank}` : ""}`;
     if (navigator.share) {
@@ -189,69 +197,97 @@ export function ResultsScreen() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-4">
-          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
-          <p className="text-gray-700 text-lg font-medium">Carregando seus resultados...</p>
-        </motion.div>
-      </div>
-    );
-  }
-
-  const playerStats = playerEntry;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 relative overflow-hidden">
       <AnimatedBackground variant="celebration" density="medium" speed="slow" />
 
-      <div className="relative z-10 max-w-5xl mx-auto p-6 py-10">
-        <motion.div initial={{ opacity: 0, y: -30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">Parabéns!</h1>
-          <p className="text-xl text-gray-600">{currentQuiz?.title}</p>
-        </motion.div>
+      <AnimatePresence>
+        {showCalculating && <CalculatingResults duration={15} />}
+      </AnimatePresence>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-          <StatsCard title="Acertos" value={`${playerStats.correctAnswers}/${playerStats.totalQuestions}`} icon={CheckCircle} color="bg-green-100 text-green-600" />
-          <StatsCard title="Pontuação" value={playerStats.score} icon={Trophy} color="bg-purple-100 text-purple-600" />
-          <StatsCard title="Tempo" value={`${playerStats.timeSpent.toFixed(1)}s`} icon={Clock} color="bg-blue-100 text-blue-600" />
-          <StatsCard title="Posição" value={playerRank ? `#${playerRank}` : "-"} icon={Crown} color="bg-yellow-100 text-yellow-600" />
-        </div>
-
-        <Card className="bg-white/95 backdrop-blur-sm p-6 shadow-lg">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Trophy className="w-6 h-6 text-yellow-500" /> Ranking
-            </h2>
-            <div className="flex items-center gap-4">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <span className="text-sm text-gray-500">{lastUpdated ? `Atualizado: ${lastUpdated.toLocaleTimeString()}` : "Atualizando..."}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>Atualiza automaticamente a cada 10 segundos</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <Button variant="ghost" size="sm" onClick={handleManualRefresh} disabled={isFetching} aria-label="Atualizar ranking manualmente">
-                <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
-              </Button>
-              <Button onClick={shareResults} variant="outline" className="gap-2">
-                <Share2 className="w-4 h-4" /> Compartilhar
-              </Button>
+      {!showCalculating && (
+        <div className="relative z-10 max-w-5xl mx-auto p-6 py-10">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"
+              />
             </div>
-          </div>
+          ) : (
+            <>
+              <motion.div
+                initial={{ opacity: 0, y: -30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="text-center mb-12"
+              >
+                <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">Parabéns!</h1>
+                <p className="text-xl text-gray-600">{currentQuiz?.title}</p>
+              </motion.div>
 
-          <div className="space-y-3">
-            <AnimatePresence>
-              {rankings.map((entry, index) => (
-                <RankingCard key={`${entry.playerName}-${index}`} entry={entry} index={index} isCurrentPlayer={entry.playerName === playerName} />
-              ))}
-            </AnimatePresence>
-            {rankings.length === 0 && <p className="text-center text-gray-500 py-8">Nenhum resultado disponível ainda.</p>}
-          </div>
-        </Card>
-      </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+                <StatsCard
+                  title="Acertos"
+                  value={`${playerStats.correctAnswers}/${playerStats.totalQuestions}`}
+                  icon={CheckCircle}
+                  color="bg-green-100 text-green-600"
+                />
+                <StatsCard title="Pontuação" value={playerStats.score} icon={Trophy} color="bg-purple-100 text-purple-600" />
+                <StatsCard title="Tempo" value={`${playerStats.timeSpent.toFixed(1)}s`} icon={Clock} color="bg-blue-100 text-blue-600" />
+                <StatsCard title="Posição" value={playerRank ? `#${playerRank}` : "-"} icon={Crown} color="bg-yellow-100 text-yellow-600" />
+              </div>
+
+              <Card className="bg-white/95 backdrop-blur-sm p-6 shadow-lg">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <Trophy className="w-6 h-6 text-yellow-500" /> Ranking
+                  </h2>
+                  <div className="flex items-center gap-4">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <span className="text-sm text-gray-500">
+                            {lastUpdated ? `Atualizado: ${lastUpdated.toLocaleTimeString()}` : "Atualizando..."}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>Atualiza automaticamente a cada 20 segundos</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleManualRefresh}
+                      disabled={isFetching}
+                      aria-label="Atualizar ranking manualmente"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
+                    </Button>
+                    <Button onClick={shareResults} variant="outline" className="gap-2">
+                      <Share2 className="w-4 h-4" /> Compartilhar
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <AnimatePresence>
+                    {rankings.map((entry, index) => (
+                      <RankingCard
+                        key={`${entry.playerName}-${index}`}
+                        entry={entry}
+                        index={index}
+                        isCurrentPlayer={entry.playerName === playerName}
+                      />
+                    ))}
+                  </AnimatePresence>
+                  {rankings.length === 0 && <p className="text-center text-gray-500 py-8">Nenhum resultado disponível ainda.</p>}
+                </div>
+              </Card>
+            </>
+          )}
+        </div>
+      )}
 
       <Toast message={toast.message} type={toast.type} isVisible={toast.isVisible} onClose={hideToast} />
     </div>
