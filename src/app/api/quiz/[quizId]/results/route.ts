@@ -1,35 +1,130 @@
+// src/app/api/quiz/[quizId]/results/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
 import mongoose from "mongoose";
-import { Quiz, QuizResult } from "@/models";
+import { Quiz, QuizResult, IQuizResult } from "@/models";
+import { calculateQuizScore } from "@/utils/scoring";
+
+// Função para corrigir documentos antigos sem correctAnswers
 
 
-
-// Função para calcular a pontuação regressiva (igual ao cliente)
-function calculateRegressiveScore(timeToAnswer: number, maxTime: number = 10): number {
-  const timeInSeconds = timeToAnswer / 1000; // Converte de ms para s
-  console.log(`Calculating regressive score for ${timeInSeconds} seconds`);
-  const maxScore = 1000;
-  if (timeInSeconds >= maxTime) return 0;
-  const score = Math.floor(maxScore * (1 - timeInSeconds / maxTime));
-  return Math.max(score, 0);
-}
-
-export async function GET(
+export async function POST(
   request: NextRequest,
   context: { params: Promise<{ quizId: string }> }
 ) {
   try {
     const { quizId } = await context.params;
-    console.log("Requisição GET para resultados do quiz:", quizId);
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+      return NextResponse.json({ error: "ID de quiz inválido" }, { status: 400 });
+    }
 
+    const body = await request.json();
+    const { playerName, playerAvatar, answers, clientId, correctAnswers: frontendCorrectAnswers } = body;
+
+    if (!playerName || !Array.isArray(answers)) {
+      return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
+    }
+
+    await connectToDatabase();
+
+    const quiz = await Quiz.findById(quizId);
+    if (!quiz) {
+      return NextResponse.json({ error: "Quiz não encontrado" }, { status: 404 });
+    }
+
+    const existingResult = clientId ? await QuizResult.findOne({ quizId, clientId }) : null;
+    if (existingResult) {
+      return NextResponse.json(
+        {
+          id: existingResult._id.toString(),
+          score: existingResult.score,
+          correctAnswers: existingResult.correctAnswers,
+          playerName,
+        },
+        { status: 200 }
+      );
+    }
+
+    const totalQuestions = quiz.questions.length;
+    const enrichedAnswers = answers.map((answer: any) => {
+      const question = quiz.questions[answer.questionIndex];
+      const isCorrect = question && question.correctAnswer === answer.selectedAnswer;
+      return {
+        questionIndex: answer.questionIndex,
+        selectedAnswer: answer.selectedAnswer,
+        timeToAnswer: answer.timeToAnswer,
+        isCorrect: isCorrect || answer.isCorrect,
+      };
+    });
+
+    const scoreResult = calculateQuizScore(enrichedAnswers);
+    const timeSpent = enrichedAnswers.reduce((acc: number, answer: any) => acc + answer.timeToAnswer / 1000, 0);
+
+    if (frontendCorrectAnswers !== undefined && frontendCorrectAnswers !== scoreResult.correctAnswers) {
+      console.warn(
+        `[POST /api/quiz/${quizId}/results] Diferença nos acertos: Frontend=${frontendCorrectAnswers}, Backend=${scoreResult.correctAnswers}`
+      );
+    }
+
+    // Tipar resultData como um subconjunto de IQuizResult
+    const resultData: Pick<
+      IQuizResult,
+      "quizId" | "userId" | "playerName" | "playerAvatar" | "score" | "correctAnswers" | "percentCorrect" | "totalQuestions" | "timeSpent" | "answers" | "clientId"
+    > = {
+      quizId: new mongoose.Types.ObjectId(quizId),
+      userId: null,
+      playerName,
+      playerAvatar: playerAvatar || "",
+      score: scoreResult.totalScore,
+      correctAnswers: scoreResult.correctAnswers,
+      percentCorrect: scoreResult.percentCorrect,
+      totalQuestions,
+      timeSpent,
+      answers: enrichedAnswers,
+      clientId,
+    };
+
+    console.log(`[POST /api/quiz/${quizId}/results] Dados a serem salvos:`, resultData);
+
+    // Criar o documento e garantir que todos os campos sejam salvos
+    const result = await QuizResult.create(resultData); // Voltar para create() para simplificar
+
+    console.log(`[POST /api/quiz/${quizId}/results] Documento salvo no MongoDB (via create):`, result.toObject());
+
+    // Verificar diretamente no MongoDB após salvar
+    const savedDoc = await QuizResult.findById(result._id).lean();
+    console.log(`[POST /api/quiz/${quizId}/results] Documento recuperado do MongoDB:`, savedDoc);
+
+    return NextResponse.json(
+      {
+        id: result._id.toString(),
+        score: scoreResult.totalScore,
+        correctAnswers: scoreResult.correctAnswers,
+        totalQuestions,
+        playerName,
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Erro ao salvar resultado:", error);
+    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
+  }
+}
+
+// Manter os métodos GET e DELETE como estão
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ quizId: string }> }
+) {
+  try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
+    const { quizId } = await context.params;
     if (!mongoose.Types.ObjectId.isValid(quizId)) {
       return NextResponse.json({ error: "ID de quiz inválido" }, { status: 400 });
     }
@@ -38,23 +133,25 @@ export async function GET(
 
     const quiz = await Quiz.findOne({
       _id: quizId,
-      userId: session.user.id,
+      userId: new mongoose.Types.ObjectId(session.user.id),
     });
 
     if (!quiz) {
-      return NextResponse.json({ error: "Quiz não encontrado" }, { status: 404 });
+      return NextResponse.json({ error: "Quiz não encontrado ou não autorizado" }, { status: 404 });
     }
 
     const results = await QuizResult.find({ quizId })
-      .sort({ createdAt: -1 })
+      .sort({ correctAnswers: -1, timeSpent: 1 }) // Ordem por acertos (desc) e tempo (asc)
       .lean();
 
     const formattedResults = results.map((result) => ({
       id: result._id.toString(),
       playerName: result.playerName,
       score: result.score,
-      totalQuestions: quiz.questions.length,
-      createdAt: result.createdAt.toISOString(),
+      correctAnswers: result.correctAnswers || 0,
+      totalQuestions: result.totalQuestions,
+      timeSpent: result.timeSpent,
+      createdAt: result.createdAt,
     }));
 
     return NextResponse.json({
@@ -66,93 +163,7 @@ export async function GET(
     });
   } catch (error) {
     console.error("Erro ao buscar resultados:", error);
-    return NextResponse.json(
-      { error: "Erro interno do servidor" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ quizId: string }> }
-) {
-  try {
-    const { quizId } = await context.params;
-    console.log("Requisição POST para salvar resultado do quiz:", quizId);
-
-    if (!mongoose.Types.ObjectId.isValid(quizId)) {
-      return NextResponse.json({ error: "ID de quiz inválido" }, { status: 400 });
-    }
-
-    const body = await request.json();
-    const { playerName, playerAvatar, answers } = body;
-
-    if (!playerName || !Array.isArray(answers)) {
-      return NextResponse.json(
-        { error: "Dados incompletos: playerName e answers são obrigatórios" },
-        { status: 400 }
-      );
-    }
-
-    await connectToDatabase();
-
-    const quiz = await Quiz.findById(quizId);
-    if (!quiz) {
-      return NextResponse.json({ error: "Quiz não encontrado" }, { status: 404 });
-    }
-
-    const totalQuestions = quiz.questions.length;
-    const enrichedAnswers = answers.map((answer: any) => {
-      const question = quiz.questions[answer.questionIndex];
-      const isCorrect = question && question.correctAnswer === answer.selectedAnswer;
-      return {
-        questionIndex: answer.questionIndex,
-        selectedAnswer: answer.selectedAnswer,
-        timeToAnswer: answer.timeToAnswer,
-        isCorrect: isCorrect || false,
-      };
-    });
-
-    // Calcular pontuação total com regressão
-    const score = enrichedAnswers.reduce((acc: number, answer: any) => {
-      const timeInSeconds = answer.timeToAnswer / 1000; // Converte de ms para s
-      const questionScore = answer.isCorrect ? calculateRegressiveScore(answer.timeToAnswer) : 0;
-      console.log(`Answer ${answer.questionIndex}: isCorrect=${answer.isCorrect}, timeToAnswer=${timeInSeconds}s, score=${questionScore}`);
-      return acc + questionScore;
-    }, 0);
-
-    const timeSpent = enrichedAnswers.reduce((acc: number, answer: any) => {
-      return acc + answer.timeToAnswer / 1000; // Soma o tempo em segundos
-    }, 0);
-
-    console.log(`Pontuação calculada: ${score}, Time Spent: ${timeSpent}s`);
-
-    const result = await QuizResult.create({
-      quizId,
-      userId: null,
-      playerName,
-      playerAvatar: playerAvatar || "",
-      score,
-      totalQuestions,
-      timeSpent,
-      answers: enrichedAnswers,
-    });
-
-    return NextResponse.json(
-      {
-        id: result._id.toString(),
-        score,
-        playerName,
-      },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error("Erro ao salvar resultado:", error);
-    return NextResponse.json(
-      { error: "Erro interno do servidor" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }
 
@@ -161,14 +172,12 @@ export async function DELETE(
   context: { params: Promise<{ quizId: string }> }
 ) {
   try {
-    const { quizId } = await context.params;
-    console.log("Requisição DELETE para zerar resultados do quiz:", quizId);
-
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
+    const { quizId } = await context.params;
     if (!mongoose.Types.ObjectId.isValid(quizId)) {
       return NextResponse.json({ error: "ID de quiz inválido" }, { status: 400 });
     }
@@ -177,24 +186,21 @@ export async function DELETE(
 
     const quiz = await Quiz.findOne({
       _id: quizId,
-      userId: session.user.id,
+      userId: new mongoose.Types.ObjectId(session.user.id),
     });
 
     if (!quiz) {
-      return NextResponse.json({ error: "Quiz não encontrado" }, { status: 404 });
+      return NextResponse.json({ error: "Quiz não encontrado ou não autorizado" }, { status: 404 });
     }
 
-    const deleteResult = await QuizResult.deleteMany({ quizId });
+    const result = await QuizResult.deleteMany({ quizId });
 
     return NextResponse.json({
-      message: "Resultados zerados com sucesso",
-      deletedCount: deleteResult.deletedCount,
+      message: `${result.deletedCount} resultado(s) excluído(s) com sucesso`,
+      deletedCount: result.deletedCount,
     });
   } catch (error) {
-    console.error("Erro ao zerar resultados:", error);
-    return NextResponse.json(
-      { error: "Erro interno do servidor" },
-      { status: 500 }
-    );
+    console.error("Erro ao excluir resultados:", error);
+    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }

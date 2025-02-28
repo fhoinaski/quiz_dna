@@ -1,324 +1,275 @@
-import { useEffect, useState, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+"use client";
 
-import { Trophy, Crown, Medal, Award, Share2,  RefreshCw } from 'lucide-react'
-import { useQuizStore } from '@/store'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/Card'
-import confetti from 'canvas-confetti'
-import { useSpring, animated } from '@react-spring/web'
-import { AnimatedBackground } from '@/components/ui/AnimatedBackground'
-import { useToast } from '@/hooks/useToast'
-import { Toast } from '@/components/ui/Toast'
+import { useEffect, useState, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Trophy, Crown, Medal, Award, Share2, RefreshCw, CheckCircle, Clock } from "lucide-react";
+import { useQuizStore } from "@/store";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/Card";
+import confetti from "canvas-confetti";
+import { useSpring, animated } from "@react-spring/web";
+import { AnimatedBackground } from "@/components/ui/AnimatedBackground";
+import { useToast } from "@/hooks/useToast";
+import { Toast } from "@/components/ui/Toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface RankingEntry {
-  playerName: string
-  score: number
-  timeBonus: number
-  totalScore: number
-  position?: number
-  avatar?: string
+  playerName: string;
+  score: number;
+  correctAnswers: number;
+  totalQuestions: number;
+  timeSpent: number;
+  position?: number;
+  avatar?: string;
 }
 
 const ScoreAnimation = ({ value }: { value: number }) => {
   const { number } = useSpring({
     from: { number: 0 },
     number: value,
-    delay: 200,
-    config: { mass: 1, tension: 20, friction: 10 }
-  })
+    delay: 300,
+    config: { mass: 1, tension: 30, friction: 12 },
+  });
 
-  return (
-    <animated.span>
-      {number.to((n) => Math.floor(n).toLocaleString())}
-    </animated.span>
-  )
-}
+  return <animated.span>{number.to((n) => Math.floor(n).toLocaleString())}</animated.span>;
+};
 
-const RankingCard = ({ entry, index, isCurrentPlayer }: { 
-  entry: RankingEntry
-  index: number 
-  isCurrentPlayer: boolean
-}) => {
-  const isTopThree = index < 3
-  const icons = [Crown, Medal, Award]
-  const colors = [
-    'text-yellow-500 bg-yellow-100',
-    'text-gray-500 bg-gray-100',
-    'text-amber-500 bg-amber-100'
-  ]
-
-  const IconComponent = isTopThree ? icons[index] : Trophy
-  const colorClass = isTopThree ? colors[index] : 'text-blue-500 bg-blue-100'
+const RankingCard = ({ entry, index, isCurrentPlayer }: { entry: RankingEntry; index: number; isCurrentPlayer: boolean }) => {
+  const isTopThree = index < 3;
+  const icons = [Crown, Medal, Award];
+  const colors = ["bg-yellow-100 text-yellow-600", "bg-gray-100 text-gray-600", "bg-amber-100 text-amber-600"];
+  const IconComponent = isTopThree ? icons[index] : Trophy;
+  const colorClass = isTopThree ? colors[index] : "bg-blue-100 text-blue-600";
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.1 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.1, duration: 0.3 }}
       className="relative"
     >
-      <Card 
-        className={`bg-white/90 backdrop-blur-sm p-4 transform transition-all hover:scale-102 hover:shadow-lg
-          ${isCurrentPlayer ? 'border-2 border-blue-400' : ''}`}
+      <Card
+        className={`bg-white/95 backdrop-blur-sm p-5 transition-all hover:shadow-md border-l-4 ${
+          isTopThree ? (index === 0 ? "border-yellow-400" : index === 1 ? "border-gray-400" : "border-amber-400") : "border-transparent"
+        } ${isCurrentPlayer ? "border-2 border-blue-500 shadow-lg" : ""}`}
       >
-        <div className="flex items-center gap-4">
-          <div className={`w-12 h-12 rounded-full ${colorClass} flex items-center justify-center`}>
-            <IconComponent className="w-6 h-6" />
-          </div>
-          
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-gray-800">
-                {entry.playerName}
-                {isCurrentPlayer && (
-                  <span className="ml-2 text-sm text-blue-600">(Você)</span>
-                )}
-              </h3>
-              {entry.avatar && (
-                <span className="text-2xl">{entry.avatar}</span>
-              )}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-full ${colorClass} flex items-center justify-center shrink-0`}>
+              <IconComponent className="w-6 h-6" />
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span>Pontuação: {entry.score}</span>
-              {entry.timeBonus > 0 && (
-                <span className="text-green-600">+{entry.timeBonus} (bônus)</span>
-              )}
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-gray-900 text-lg">
+                  {entry.playerName}
+                  {isCurrentPlayer && <span className="ml-2 text-sm text-blue-600 font-medium">(Você)</span>}
+                </h3>
+                {entry.avatar && <span className="text-2xl">{entry.avatar}</span>}
+              </div>
+              <div className="flex flex-wrap gap-3 text-sm text-gray-600 mt-1">
+                <span className="flex items-center gap-1">
+                  <CheckCircle className="w-4 h-4 text-green-500" /> {entry.correctAnswers}/{entry.totalQuestions}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock className="w-4 h-4 text-blue-500" /> {entry.timeSpent.toFixed(1)}s
+                </span>
+              </div>
             </div>
           </div>
-
-          <div className="text-2xl font-bold text-gray-800">
-            #{index + 1}
-          </div>
+          <div className="text-2xl font-bold text-gray-700">#{index + 1}</div>
         </div>
       </Card>
     </motion.div>
-  )
-}
-
-const StatsCard = ({ title, value, icon: Icon, color }: {
-  title: string
-  value: number | string
-  icon: any
-  color: string
-}) => {
-  return (
-    <Card className="bg-white/90 backdrop-blur-sm p-6">
-      <div className="flex items-center gap-4">
-        <div className={`w-12 h-12 rounded-full ${color} flex items-center justify-center`}>
-          <Icon className="w-6 h-6" />
-        </div>
-        <div>
-          <p className="text-sm text-gray-600">{title}</p>
-          <p className="text-2xl font-bold text-gray-800">
-            <ScoreAnimation value={typeof value === 'number' ? value : parseInt(value)} />
-          </p>
-        </div>
-      </div>
-    </Card>
-  )
-}
+  );
+};
 
 export function ResultsScreen() {
-  const { currentQuiz, playerName} = useQuizStore()
-  const [rankings, setRankings] = useState<RankingEntry[]>([])
-  const [loading, setLoading] = useState(true)
-  const [playerRank, setPlayerRank] = useState<number | null>(null)
-  const { toast, showToast, hideToast } = useToast()
+  const { currentQuiz, playerName, answers } = useQuizStore();
+  const [rankings, setRankings] = useState<RankingEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [playerRank, setPlayerRank] = useState<number | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isFetching, setIsFetching] = useState(false);
+  const { toast, showToast, hideToast } = useToast();
+  const fetchIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const calculateCorrectAnswers = useCallback(() => {
+    if (!currentQuiz?.questions || !answers.length) return 0;
+    return answers.reduce((count, answer) => {
+      const question = currentQuiz.questions[answer.questionIndex];
+      return question && question.correctAnswer === answer.selectedAnswer ? count + 1 : count;
+    }, 0);
+  }, [currentQuiz?.questions, answers]);
 
   const triggerConfetti = useCallback(() => {
     confetti({
-      particleCount: 150,
-      spread: 70,
+      particleCount: 200,
+      spread: 90,
       origin: { y: 0.6 },
-      colors: ['#FFD700', '#FFA500', '#FF6347']
-    })
-  }, [])
+      colors: ["#FFD700", "#FFA500", "#FF6347", "#4CAF50"],
+    });
+  }, []);
 
   useEffect(() => {
-    if (loading) return
-    
-    const playerPosition = rankings.findIndex(r => r.playerName === playerName)
-    if (playerPosition < 3) {
-      triggerConfetti()
-      
-      const messages = [
-        '🏆 Parabéns! Você está no topo do ranking!',
-        '🥈 Incrível! Você conquistou a segunda posição!',
-        '🥉 Muito bem! Você está entre os três melhores!'
-      ]
-      showToast(messages[playerPosition], 'success')
-    }
-  }, [loading, rankings, playerName, showToast, triggerConfetti])
+    if (loading || !playerRank || playerRank > 3) return;
+    triggerConfetti();
+    const messages = [
+      "🏆 Parabéns! Você conquistou o 1º lugar!",
+      "🥈 Fantástico! Segundo lugar é seu!",
+      "🥉 Excelente! Você está no pódio!",
+    ];
+    showToast(messages[playerRank - 1], "success");
+  }, [loading, playerRank, showToast, triggerConfetti]);
 
   const fetchResults = useCallback(async () => {
-    if (!currentQuiz?.id) return
-
+    if (!currentQuiz?.id || isFetching) return;
     try {
-      const response = await fetch(`/api/quiz/${currentQuiz.id}/results/public`)
-      if (!response.ok) throw new Error('Falha ao carregar resultados')
-      
-      const data = await response.json()
-      const processedRankings = data
-        .map((entry: any) => ({
-          playerName: entry.playerName || 'Anônimo',
-          score: entry.score || 0,
-          timeBonus: entry.timeBonus || 0,
-          totalScore: (entry.score || 0) + (entry.timeBonus || 0),
-          avatar: entry.playerAvatar
-        }))
-        .sort((a: RankingEntry, b: RankingEntry) => b.totalScore - a.totalScore)
-        .map((entry: RankingEntry, index: number) => ({
-          ...entry,
-          position: index + 1
-        }))
+      setIsFetching(true);
+      const response = await fetch(`/api/quiz/${currentQuiz.id}/ranking`);
+      if (!response.ok) throw new Error("Falha ao carregar resultados");
+      const data: RankingEntry[] = await response.json();
 
-      setRankings(processedRankings)
-      
-      const playerRankPosition = processedRankings.findIndex(
-        (r: RankingEntry) => r.playerName === playerName
-      )
-      setPlayerRank(playerRankPosition + 1)
+      const isDifferent = JSON.stringify(data) !== JSON.stringify(rankings);
+      if (isDifferent) {
+        setRankings(data);
+        const playerRankPosition = data.findIndex((r) => r.playerName === playerName);
+        setPlayerRank(playerRankPosition >= 0 ? playerRankPosition + 1 : null);
+      }
+      setLastUpdated(new Date());
     } catch (error) {
-      console.error('Erro ao carregar resultados:', error)
-      showToast('Erro ao carregar resultados', 'error')
+      console.error("Erro ao carregar resultados:", error);
+      showToast("Erro ao carregar resultados", "error");
     } finally {
-      setLoading(false)
+      setLoading(false);
+      setIsFetching(false);
     }
-  }, [currentQuiz?.id, playerName, showToast])
+  }, [currentQuiz?.id, playerName, rankings, isFetching, showToast]);
 
+  // Configurar polling apenas uma vez na montagem do componente
+  /* eslint-disable-next-line react-hooks/exhaustive-deps */
   useEffect(() => {
-    fetchResults()
-    const interval = setInterval(fetchResults, 5000)
-    return () => clearInterval(interval)
-  }, [fetchResults])
+    fetchResults(); // Carregar resultados iniciais
 
-  const playerStats = rankings.find(r => r.playerName === playerName) || {
+    fetchIntervalRef.current = setInterval(() => {
+      fetchResults(); 
+    }, 30000);
+
+    return () => {
+      if (fetchIntervalRef.current) {
+        clearInterval(fetchIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const handleManualRefresh = () => {
+    fetchResults();
+    showToast("Ranking atualizado manualmente!", "success");
+  };
+
+  const playerEntry = rankings.find((r) => r.playerName === playerName) || {
     score: 0,
-    timeBonus: 0,
-    totalScore: 0
-  }
+    correctAnswers: calculateCorrectAnswers(),
+    totalQuestions: currentQuiz?.questions?.length || 0,
+    timeSpent: answers.reduce((total, a) => total + a.timeToAnswer / 1000, 0),
+  };
 
   const shareResults = async () => {
-    const text = `🏆 Completei o quiz "${currentQuiz?.title}" com ${playerStats.totalScore} pontos! (${playerStats.score} pontos + ${playerStats.timeBonus} bônus)${playerRank ? ` #${playerRank}` : ''}`
-    
+    const text = `🏆 Quiz "${currentQuiz?.title}": ${playerStats.correctAnswers}/${playerStats.totalQuestions} acertos em ${playerStats.timeSpent.toFixed(1)}s! ${playerRank ? `Posição: #${playerRank}` : ""}`;
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: 'Meu resultado no Quiz',
-          text: text,
-          url: window.location.href
-        })
-        showToast('Resultado compartilhado com sucesso!', 'success')
+        await navigator.share({ title: "Meu Resultado no Quiz", text, url: window.location.href });
+        showToast("Resultado compartilhado com sucesso!", "success");
       } catch (err) {
-        if (err.name !== 'AbortError') {
-          showToast('Erro ao compartilhar resultado', 'error')
-        }
+        if (err.name !== "AbortError") showToast("Erro ao compartilhar", "error");
       }
     } else {
       navigator.clipboard.writeText(text)
-        .then(() => {
-          showToast('Resultado copiado para a área de transferência!', 'success')
-        })
-        .catch(() => {
-          showToast('Erro ao copiar resultado', 'error')
-        })
+        .then(() => showToast("Copiado para a área de transferência!", "success"))
+        .catch(() => showToast("Erro ao copiar", "error"));
     }
-  }
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center"
-        >
-          <RefreshCw className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 text-lg">Calculando resultados...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-4">
+          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
+          <p className="text-gray-700 text-lg font-medium">Carregando seus resultados...</p>
         </motion.div>
       </div>
-    )
+    );
   }
 
+  const playerStats = playerEntry;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 relative overflow-hidden">
-      <AnimatedBackground variant="celebration" density="high" speed="normal" />
-      
-      <div className="relative z-10 max-w-5xl mx-auto p-4 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
-        >
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">
-            Quiz Finalizado!
-          </h1>
-          <p className="text-xl text-gray-600">
-            {currentQuiz?.title}
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 relative overflow-hidden">
+      <AnimatedBackground variant="celebration" density="medium" speed="slow" />
+
+      <div className="relative z-10 max-w-5xl mx-auto p-6 py-10">
+        <motion.div initial={{ opacity: 0, y: -30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="text-center mb-12">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">Parabéns!</h1>
+          <p className="text-xl text-gray-600">{currentQuiz?.title}</p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <StatsCard
-            title="Sua Pontuação"
-            value={playerStats.score}
-            icon={Trophy}
-            color="bg-yellow-100 text-yellow-600"
-          />
-          <StatsCard
-            title="Bônus de Tempo"
-            value={playerStats.timeBonus}
-            icon={Award}
-            color="bg-green-100 text-green-600"
-          />
-          <StatsCard
-            title="Sua Posição"
-            value={playerRank || '-'}
-            icon={Medal}
-            color="bg-blue-100 text-blue-600"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+          <StatsCard title="Acertos" value={`${playerStats.correctAnswers}/${playerStats.totalQuestions}`} icon={CheckCircle} color="bg-green-100 text-green-600" />
+          <StatsCard title="Pontuação" value={playerStats.score} icon={Trophy} color="bg-purple-100 text-purple-600" />
+          <StatsCard title="Tempo" value={`${playerStats.timeSpent.toFixed(1)}s`} icon={Clock} color="bg-blue-100 text-blue-600" />
+          <StatsCard title="Posição" value={playerRank ? `#${playerRank}` : "-"} icon={Crown} color="bg-yellow-100 text-yellow-600" />
         </div>
 
-        <Card className="bg-white/90 backdrop-blur-sm p-6 mb-8">
+        <Card className="bg-white/95 backdrop-blur-sm p-6 shadow-lg">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <Trophy className="w-6 h-6 text-yellow-500" />
-              Ranking
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Trophy className="w-6 h-6 text-yellow-500" /> Ranking
             </h2>
-            <Button
-              onClick={shareResults}
-              className="flex items-center gap-2"
-              variant="outline"
-            >
-              <Share2 className="w-4 h-4" />
-              Compartilhar
-            </Button>
+            <div className="flex items-center gap-4">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <span className="text-sm text-gray-500">{lastUpdated ? `Atualizado: ${lastUpdated.toLocaleTimeString()}` : "Atualizando..."}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>Atualiza automaticamente a cada 10 segundos</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <Button variant="ghost" size="sm" onClick={handleManualRefresh} disabled={isFetching} aria-label="Atualizar ranking manualmente">
+                <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
+              </Button>
+              <Button onClick={shareResults} variant="outline" className="gap-2">
+                <Share2 className="w-4 h-4" /> Compartilhar
+              </Button>
+            </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <AnimatePresence>
               {rankings.map((entry, index) => (
-                <RankingCard
-                  key={`${entry.playerName}-${index}`}
-                  entry={entry}
-                  index={index}
-                  isCurrentPlayer={entry.playerName === playerName}
-                />
+                <RankingCard key={`${entry.playerName}-${index}`} entry={entry} index={index} isCurrentPlayer={entry.playerName === playerName} />
               ))}
             </AnimatePresence>
+            {rankings.length === 0 && <p className="text-center text-gray-500 py-8">Nenhum resultado disponível ainda.</p>}
           </div>
         </Card>
-
-      
       </div>
 
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        isVisible={toast.isVisible}
-        onClose={hideToast}
-      />
+      <Toast message={toast.message} type={toast.type} isVisible={toast.isVisible} onClose={hideToast} />
     </div>
-  )
+  );
 }
+
+const StatsCard = ({ title, value, icon: Icon, color }: { title: string; value: number | string; icon: any; color: string }) => {
+  return (
+    <Card className="bg-white/95 backdrop-blur-sm p-5 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-center gap-4">
+        <div className={`w-10 h-10 rounded-full ${color} flex items-center justify-center shrink-0`}>
+          <Icon className="w-5 h-5" />
+        </div>
+        <div>
+          <p className="text-sm text-gray-600 font-medium">{title}</p>
+          <p className="text-xl font-bold text-gray-800">{typeof value === "number" ? <ScoreAnimation value={value} /> : value}</p>
+        </div>
+      </div>
+    </Card>
+  );
+};

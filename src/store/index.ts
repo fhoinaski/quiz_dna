@@ -86,12 +86,10 @@ type QuizState = {
   startQuiz: () => void;
 };
 
-// Função para calcular a pontuação regressiva
-function calculateRegressiveScore(timeTaken: number, maxTime: number = 10): number {
-  const maxScore = 1000; // Pontuação máxima por questão
-  if (timeTaken >= maxTime) return 0; // Se exceder o tempo máximo, pontuação é 0
-  const score = Math.floor(maxScore * (1 - timeTaken / maxTime)); // Diminui linearmente
-  return Math.max(score, 0); // Garante que não seja negativo
+
+
+function calculateScore(isCorrect: boolean): number {
+  return isCorrect ? 100 : 0;
 }
 
 export const useQuizStore = create<QuizState>((set) => ({
@@ -111,16 +109,17 @@ export const useQuizStore = create<QuizState>((set) => ({
   setPlayerName: (name) => set({ playerName: name }),
   setPlayerAvatar: (avatar) => set({ playerAvatar: avatar }),
 
+  
   answerQuestion: (quizId, questionIndex, answer, timeTaken) => {
     const state = useQuizStore.getState();
     const question = state.currentQuiz?.questions[questionIndex];
     const isCorrect = question && question.correctAnswer === answer;
-    const score = isCorrect ? calculateRegressiveScore(timeTaken) : 0;
-
+    const score = calculateScore(isCorrect);
+  
     console.log(
-      `[Store] Resposta - Quiz: ${quizId}, Questão: ${questionIndex}, Resposta: ${answer}, Pontuação: ${score}, Tempo: ${timeTaken}s`
+      `[Store] Resposta - Quiz: ${quizId}, Questão: ${questionIndex}, Resposta: ${answer}, Acerto: ${isCorrect}, Tempo: ${timeTaken}s`
     );
-
+  
     set((state) => ({
       score: state.score + score,
       currentQuestionIndex: state.currentQuestionIndex + 1,
@@ -245,41 +244,69 @@ export const useQuizStore = create<QuizState>((set) => ({
   finishQuiz: async (quizId, answers) => {
     try {
       console.log(`[Store] Finalizando quiz ${quizId} com ${answers.length} respostas`);
-      const { playerName, playerAvatar } = useQuizStore.getState();
+      const { playerName, playerAvatar, currentQuiz } = useQuizStore.getState();
       if (!playerName) {
         throw new Error("Nome do jogador não definido");
       }
-
+  
+      // Verificar se currentQuiz existe
+      if (!currentQuiz) {
+        throw new Error("Quiz não carregado");
+      }
+  
+      // Calcular respostas corretas manualmente para garantir consistência
+      const enrichedAnswers = answers.map((answer) => {
+        const question = currentQuiz.questions[answer.questionIndex];
+        const isCorrect = question && question.correctAnswer === answer.selectedAnswer;
+        return {
+          ...answer,
+          isCorrect,
+        };
+      });
+  
+      const correctAnswers = enrichedAnswers.reduce((count, answer) => {
+        return answer.isCorrect ? count + 1 : count;
+      }, 0);
+  
+      console.log(`[Store] Calculado localmente: ${correctAnswers}/${answers.length} acertos`);
+  
+      const clientId = getClientId();
+  
+      // Mudar para a tela de resultados imediatamente
+      set({ currentStep: "results" });
+  
       const response = await fetch(`/api/quiz/${quizId}/results`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerName, playerAvatar: playerAvatar || "", answers }),
+        body: JSON.stringify({
+          playerName,
+          playerAvatar: playerAvatar || "",
+          answers: enrichedAnswers,
+          clientId,
+          correctAnswers, // Enviando explicitamente o número de acertos
+          totalQuestions: currentQuiz.questions.length,
+        }),
       });
-
+  
       if (!response.ok) {
-        let errorMessage = "Falha ao salvar resultado";
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch {
-          const text = await response.text();
-          errorMessage = text || `Erro ${response.status}`;
-        }
-        console.error("[Store] Resposta da API:", errorMessage);
-        throw new Error(errorMessage);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Erro ${response.status}`);
       }
-
+  
       const data = await response.json();
       console.log("[Store] Resultado salvo:", data);
-
+  
+      // Atualizar ranking
       const rankingResponse = await fetch(`/api/quiz/${quizId}/ranking`);
-      if (!rankingResponse.ok) {
-        throw new Error("Falha ao carregar ranking");
+      if (rankingResponse.ok) {
+        const rankingData = await rankingResponse.json();
+        set({ participants: rankingData });
       }
-      const rankingData: Participant[] = await rankingResponse.json();
-      set({ participants: rankingData, currentStep: "results" });
+  
+      set({ currentStep: "results" });
     } catch (error) {
       console.error("[Store] Erro ao finalizar quiz:", error);
+      set({ currentStep: "results" });
       throw error;
     }
   },

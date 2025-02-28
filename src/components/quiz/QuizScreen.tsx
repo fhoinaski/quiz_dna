@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react"
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuizStore } from "@/store"
 
-import { Clock, Trophy,  Check, X } from "lucide-react"
+import { Clock, Trophy, Check, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import confetti from 'canvas-confetti'
@@ -53,7 +53,7 @@ const QuestionCard = ({ question, onAnswer, selectedOption, isDisabled }: {
             onClick={() => !isDisabled && onAnswer(index)}
             disabled={isDisabled}
             className={`
-              relative overflow-hidden p-6 rounded-xl text-left transition-all
+              relative overflow-hidden p-6 rounded-xl text-left transition-all option-${index}
               ${selectedOption === index 
                 ? 'bg-blue-50 border-2 border-blue-400' 
                 : 'bg-white border-2 border-gray-100 hover:border-blue-200'
@@ -140,71 +140,66 @@ export function QuizScreen() {
     })
   }, [currentQuiz, router, totalTimeLimitMs])
 
-  // const triggerConfetti = () => {
-  //   confetti({
-  //     particleCount: 100,
-  //     spread: 70,
-  //     origin: { y: 0.6 },
-  //     colors: ['#4CAF50', '#2196F3', '#FFC107']
-  //   })
-  // }
-
-// Remova a definição de triggerConfetti do escopo global do componente
-const handleAnswer = useCallback((optionIndex: number) => {
-  if (showFeedback || !currentQuiz?.id || !currentQuestion || isFinished) return
-
-  const timeElapsed = (Date.now() - startTime) / 1000
-  const correct = optionIndex === currentQuestion.correctAnswer
-
-  setIsCorrect(correct)
-  setShowFeedback(true)
-  setSelectedOption(optionIndex)
-
-  if (correct) {
-    // Função triggerConfetti movida para dentro do handleAnswer
+  const triggerConfetti = useCallback(() => {
     confetti({
       particleCount: 100,
       spread: 70,
       origin: { y: 0.6 },
       colors: ['#4CAF50', '#2196F3', '#FFC107']
     })
-  }
+  }, [])
 
-  gsap.to(`.option-${optionIndex}`, {
-    scale: 1.05,
-    duration: 0.4,
-    ease: "elastic.out(1, 0.3)",
-    yoyo: true,
-    repeat: 1
-  })
+  const handleAnswer = useCallback((optionIndex: number) => {
+    if (showFeedback || !currentQuiz?.id || !currentQuestion || isFinished) return
 
-  setTimeout(() => {
-    answerQuestion(currentQuiz.id, currentQuestionIndex, optionIndex, timeElapsed)
-    setShowFeedback(false)
-    setSelectedOption(null)
+    const timeElapsed = (Date.now() - startTime) / 1000
+    const correct = optionIndex === currentQuestion.correctAnswer
 
-    if (currentQuestionIndex + 1 >= currentQuiz.questions.length) {
-      const finalAnswers = [
-        ...answers,
-        { questionIndex: currentQuestionIndex, selectedAnswer: optionIndex, timeToAnswer: timeElapsed * 1000 }
-      ]
-      setIsFinished(true)
-      finishQuiz(currentQuiz.id, finalAnswers)
-    } else {
-      setStartTime(Date.now())
+    setIsCorrect(correct)
+    setShowFeedback(true)
+    setSelectedOption(optionIndex)
+
+    if (correct) {
+      triggerConfetti()
     }
-  }, 2000)
-}, [
-  currentQuestion,
-  currentQuiz,
-  currentQuestionIndex,
-  answerQuestion,
-  showFeedback,
-  startTime,
-  answers,
-  finishQuiz,
-  isFinished
-])
+
+    gsap.to(`.option-${optionIndex}`, {
+      scale: 1.05,
+      duration: 0.4,
+      ease: "elastic.out(1, 0.3)",
+      yoyo: true,
+      repeat: 1
+    })
+
+    setTimeout(() => {
+      answerQuestion(currentQuiz.id, currentQuestionIndex, optionIndex, timeElapsed)
+      setShowFeedback(false)
+      setSelectedOption(null)
+
+      if (currentQuestionIndex + 1 >= currentQuiz.questions.length) {
+        const finalAnswers = [
+          ...answers,
+          { questionIndex: currentQuestionIndex, selectedAnswer: optionIndex, timeToAnswer: timeElapsed * 1000 }
+        ]
+        setIsFinished(true)
+        finishQuiz(currentQuiz.id, finalAnswers)
+      } else {
+        setStartTime(Date.now())
+      }
+    }, 2000)
+  }, [
+    currentQuestion,
+    currentQuiz,
+    currentQuestionIndex,
+    answerQuestion,
+    showFeedback,
+    startTime,
+    answers,
+    finishQuiz,
+    isFinished,
+    triggerConfetti
+  ])
+
   useEffect(() => {
     if (isFinished || currentStep !== "quiz" || showFeedback || timeLeft <= 0 || isLoading || !currentQuiz?.id) return
 

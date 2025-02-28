@@ -35,14 +35,17 @@ export interface IQuizResult extends Document {
   playerName: string;
   playerAvatar?: string;
   score: number;
-  totalQuestions: number; // Calculado no servidor, não obrigatório no envio
+  correctAnswers: number;        // Número de respostas corretas
+  percentCorrect: number;       // Porcentagem de acertos
+  totalQuestions: number;
   timeSpent: number;
   answers: {
     questionIndex: number;
     selectedAnswer: number;
     timeToAnswer: number;
-    isCorrect: boolean; // Calculado no servidor
+    isCorrect: boolean;
   }[];
+  clientId?: string;           // ID do cliente para evitar duplicações
   createdAt: Date;
   updatedAt: Date;
 }
@@ -66,15 +69,7 @@ const UserSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
-// const QuestionSchema = new Schema<IQuestion>(
-//   {
-//     text: { type: String, required: true },
-//     options: { type: [String], required: true },
-//     correctAnswer: { type: Number, required: true },
-//     order: { type: Number, required: true },
-//   },
-//   { _id: false }
-// );
+
 
 const QuizSchema = new Schema<IQuiz>({
   title: { type: String, required: true },
@@ -97,7 +92,7 @@ const AnswerSchema = new Schema(
     questionIndex: { type: Number, required: true },
     selectedAnswer: { type: Number, required: true },
     timeToAnswer: { type: Number, required: true, default: 0 },
-    isCorrect: { type: Boolean, required: false }, // Tornar opcional, calculado no servidor
+    isCorrect: { type: Boolean, required: true },
   },
   { _id: false }
 );
@@ -109,22 +104,17 @@ const QuizResultSchema = new Schema<IQuizResult>(
     playerName: { type: String, required: true },
     playerAvatar: { type: String, default: "" },
     score: { type: Number, required: true },
-    totalQuestions: { type: Number, required: false }, // Tornar opcional, calculado no servidor
+    correctAnswers: { type: Number, required: true }, // Sem default, obrigatório
+    percentCorrect: { type: Number, default: 0 },
+    totalQuestions: { type: Number, required: true },
     timeSpent: { type: Number, required: true, default: 0 },
     answers: { type: [AnswerSchema], default: [] },
+    clientId: { type: String, default: null },
   },
   { timestamps: true }
 );
 
-// const ParticipantSchema = new Schema<IParticipant>(
-//   {
-//     userId: { type: String, default: null },
-//     name: { type: String, required: true },
-//     avatar: { type: String, required: true },
-//     joined: { type: Date, default: Date.now },
-//   },
-//   { _id: false }
-// );
+
 
 // Modelos - Evitar redefinição
 export const User = (mongoose.models.User || mongoose.model<IUser>("User", UserSchema)) as typeof mongoose.Model<IUser>;
